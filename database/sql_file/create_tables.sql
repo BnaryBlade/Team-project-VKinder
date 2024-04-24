@@ -1,3 +1,6 @@
+/* drop table cascade */
+--DROP TABLE IF EXISTS users CASCADE;
+
 /* drop all tables */
 DROP TABLE IF EXISTS
     users,
@@ -7,40 +10,37 @@ DROP TABLE IF EXISTS
 /* creating tables */
 /* Table of users: */
 CREATE TABLE IF NOT EXISTS Users (
-    user_id    SERIAL          NOT null,
-    first_name VARCHAR(50)     NOT NULL,
-    last_name  VARCHAR(50)     NOT NULL,
-    user_age   SMALLINT        DEFAULT NULL,
-    sex        SMALLINT        NOT NULL DEFAULT 0,
-    city       VARCHAR(100)    DEFAULT NULL, 
-    vk_id      INTEGER         NOT NULL,
-    prf_link   TEXT            NOT NULL,
-    interests  JSON            DEFAULT NULL,
-    favorites  BOOL            NOT NULL DEFAULT FALSE,
-    CONSTRAINT users_pkey      PRIMARY KEY (user_id),
-    CONSTRAINT users_vk_id_key UNIQUE (vk_id)
+    PRIMARY KEY (user_id),
+    user_id    SERIAL       NOT NULL,
+    first_name VARCHAR(50)  NOT NULL,
+    last_name  VARCHAR(50)  NOT NULL,
+    user_age   SMALLINT     NULL,
+               CONSTRAINT users_age_check
+               CHECK (user_age BETWEEN 1 AND 120) NOT VALID,
+    sex        SMALLINT     DEFAULT 0 NOT NULL,
+               CONSTRAINT users_sex_check 
+               CHECK (sex BETWEEN 0 AND 2) NOT VALID,
+    city       VARCHAR(100) NULL,
+    vk_id      INTEGER      UNIQUE NOT NULL,
+    prf_link   TEXT         NOT NULL,
+    interests  JSON         NULL,
+    favorites  BOOL         DEFAULT FALSE NOT NULL
 );
 
 /* Table of users in blacklist: */
 CREATE TABLE IF NOT EXISTS Blacklist (
-    id         SERIAL    NOT NULL,
-    user_id    INTEGER   NOT NULL,
-    CONSTRAINT blacklist_pkey PRIMARY KEY (id),
-    CONSTRAINT blacklist_user_id_fkey FOREIGN KEY (user_id)
-        REFERENCES public.users (user_id) MATCH SIMPLE
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
+    PRIMARY KEY (id),
+    id    SERIAL  NOT NULL,
+    vk_id INTEGER UNIQUE NOT NULL REFERENCES users (vk_id)
+                  ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 /* Table of users photos: */
 CREATE TABLE IF NOT EXISTS Photos (
+    PRIMARY KEY (photo_id),
 	photo_id   SERIAL  NOT NULL,
 	photo_link TEXT    NOT NULL,
-	user_id    INTEGER NOT NULL,
-	user_mark  BOOL    NOT NULL DEFAULT FALSE,
-    CONSTRAINT photos_pkey PRIMARY KEY (photo_id),
-    CONSTRAINT photos_user_id_fkey FOREIGN KEY (user_id)
-        REFERENCES public.users (user_id) MATCH SIMPLE
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
+	vk_id      INTEGER NOT NULL REFERENCES users (vk_id)
+	           ON DELETE CASCADE ON UPDATE CASCADE,
+	user_mark  BOOL    NOT NULL DEFAULT FALSE
 );
