@@ -1,6 +1,7 @@
 import os
 import sqlalchemy as sq
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship
+from sqlalchemy.orm import declarative_base, relationship
+# from sqlalchemy import select, insert, update, join
 
 Base = declarative_base()
 
@@ -52,18 +53,39 @@ class Photos(Base):
     users = relationship(Users, backref='photos')
 
 
+class ModelDb:
+
+    def __init__(self, login: str,
+                 password: str,
+                 db_name='postgres',
+                 server='localhost',
+                 port=5432,
+                 db_adapter='psycopg') -> None:
+        self.db_name = db_name
+        self._server = server
+        self._port = port
+        self._adapter = db_adapter
+        self.engine = self._create_engine(login, password)
+
+    def _create_engine(self, login: str, password: str) -> sq.Engine:
+        dsn = (f'postgresql+{self._adapter}://{login}:{password}@'
+               f'{self._server}:{self._port}/{self.db_name}')
+        return sq.create_engine(url=dsn)
+
+    def add_user(self):
+        pass
+
+    def create_all_tables(self) -> None:
+        Base.metadata.create_all(self.engine)
+
+    def drop_all_table(self) -> None:
+        Base.metadata.drop_all(self.engine)
+
+
 if __name__ == '__main__':
-    DSN = (f'postgresql+psycopg://'
-           f'{os.environ['LOGIN_DB']}:{os.environ['PASSWORD_DB']}'
-           f'@localhost:5432/vk_bot_db')
-    engine = sq.create_engine(url=DSN)
-    base = Base.metadata
-    base.drop_all(engine)
-    base.create_all(engine)
-    # Base.metadata.drop_all(engine)
+    login_db = os.environ['LOGIN_DB']
+    password_db = os.environ['PASSWORD_DB']
+    model = ModelDb(login_db, password_db, db_name='vk_bot_db')
 
-    # Session = sessionmaker(bind=engine)
-    # session = Session()
-    # session.close()
-
-    # print(DSN)
+    model.create_all_tables()
+    model.drop_all_table()
