@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 sqlalchemy = "*"
 psycopg = {version = "*", extras = ["binary", "pool"]}
+vk-api = "*"
 
 [dev-packages]
 pytest = "*"
