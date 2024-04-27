@@ -1,4 +1,15 @@
 url = https://oauth.vk.com/authorize?client_id=51914485&display=page
 &redirect_uri=http://example.com/callback&scope=friends&response_type=token&v=5.131&state=123456
 
-https://oauth.vk.com/authorize?client_id=51914485&display=page&redirect_uri=http://example.com/callback&scope=friends&response_type=token&v=5.131&state=123456
+https://oauth.vk.com/authorize?client_id=51914485&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=friends&response_type=token&v=5.131&state=123456
+
+https://oauth.vk.com/blank.html#access_token=vk1.a.oqu-m4PITaptdXe_N3RrbNPsdOwT5RAvE4YfD78Hwv7Tn4eAUZChCq979ISE783cIjc9wynJwjQ_xTZQXWYqs8LrbKGMFs6gvUits7_76Hb9H7vGurtEUIeo47W9JSHmKYotOO_B9BmMmdr9mZ2qAHK1lXy23w6zPq5qAe8Fkn_lLd2zMmTFbmKiu2Byf5cm&expires_in=86400&user_id=187352442&state=123456
+
+PIPENV_VENV_IN_PROJECT=1
+LOGIN_DB=postgres
+PASSWORD_DB=KiaPostgre1809
+VK_TOKEN=vk1.a.HvS4BiIauv2uRBBCywejMRiSyiPjhpp1YoNxhGgY_Sp6PoqrlW-Ua-Clv6POWwsZN03oC8yXQ0qe2ahGs-kBGtIVBju6bWZILr1sGTSR5nEIJCRDYnnzoVqYYoheiqhhbCuo3iNbMmthh8P-aKtkcbVrvRmN4WRzOq8Bik8PQTx6gF6KLKyKBg3hL-Gp5LdYb0uAkz-jJzo2GmIe0mTz-g
+MY_GROUP_TOKEN=vk1.a.0Oq9S0OytG5OMEXqUD7cyKogXLVpVnqz32NQF27siYjhGxjSEoGvX1KmrNaPoVErQr7eEnjX4pqhhPKEo3m0AK7MQYVzlUM3MrDj0nHDDIxOkBMKfQDFHCR2h6MqvRMN9vDY7LRIDKPNPNOIVmCYlU5sYH1dMTh36sxEPtpCx9oY6-JlndQop46ks1v0zSRZ8sw334eFCr-SzWqx_0Z9XA
+ID_VK_APP=51914485
+TOKEN_APP=vk1.a.oqu-m4PITaptdXe_N3RrbNPsdOwT5RAvE4YfD78Hwv7Tn4eAUZChCq979ISE783cIjc9wynJwjQ_xTZQXWYqs8LrbKGMFs6gvUits7_76Hb9H7vGurtEUIeo47W9JSHmKYotOO_B9BmMmdr9mZ2qAHK1lXy23w6zPq5qAe8Fkn_lLd2zMmTFbmKiu2Byf5cm
+USER_ID=187352442

@@ -19,9 +19,10 @@ login_db = os.environ['LOGIN_DB']
 password_db = os.environ['PASSWORD_DB']
 token = os.environ['VK_TOKEN']
 my_group_token = os.environ['MY_GROUP_TOKEN']
+app_id = os.environ['APP_ID']
 # vkapi = VkApi(token=my_group_token)
-vkapi = CurrVkApi()
-vkapi.get_token()
+vkapi = CurrVkApi(app_id)
+print(vkapi.token)
 
 # vkbot = VkBotAPI(some_api=vkapi)
 
