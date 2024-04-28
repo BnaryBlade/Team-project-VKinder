@@ -9,6 +9,7 @@ psycopg = {version = "*", extras = ["binary", "pool"]}
 vk-api = "*"
 selenium = "*"
 webdriver-manager = "*"
+requests = "*"
 
 [dev-packages]
 pytest = "*"

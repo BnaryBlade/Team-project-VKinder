@@ -116,6 +116,20 @@ def get_dialog_keyboard() -> VkKeyboard:
     keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
     return keyboard
 
+def get_dialog_action() -> dict:
+    key_word = {'привет': self.show_keyboard,
+                'exit': self.exit_from_vkbot,
+                'хватит': self.hide_keyboard}
+
+
+class Keyboards:
+
+    def __init__(self):
+        pass
+
+    key_word = {'привет': self.show_keyboard,
+                'exit': self.exit_from_vkbot,
+                'хватит': self.hide_keyboard}
 
 def get_selection_keyboard() -> VkKeyboard:
     keyboard = VkKeyboard()
@@ -131,3 +145,4 @@ def get_selection_keyboard() -> VkKeyboard:
 class Meths(StrEnum):
     USERS_GET = 'users.get'
     MESSAGES_SEND = 'messages.send'
+    USER_SEARCH = 'users.search'

@@ -4,3 +4,19 @@ user_id = my_str.split('=')[3].replace('&state', '')
 print(token)
 print(user_id)
 print(str(), type(str()))
+
+
+class Ffff:
+
+    def __init__(self):
+        pass
+
+    def dsf(self):
+        pass
+
+    def some_print(self):
+        print(type(self.dsf))
+
+
+fff = Ffff()
+fff.some_print()
