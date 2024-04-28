@@ -1,7 +1,7 @@
 url = https://oauth.vk.com/authorize?client_id=51914485&display=page
 &redirect_uri=http://example.com/callback&scope=friends&response_type=token&v=5.131&state=123456
 
-https://oauth.vk.com/authorize?client_id=51914485&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=friends&response_type=token&v=5.131&state=123456
+https://oauth.vk.com/authorize?client_id=1&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=friends&response_type=token&v=5.131&state=123456
 
 https://oauth.vk.com/blank.html#access_token=vk1.a.oqu-m4PITaptdXe_N3RrbNPsdOwT5RAvE4YfD78Hwv7Tn4eAUZChCq979ISE783cIjc9wynJwjQ_xTZQXWYqs8LrbKGMFs6gvUits7_76Hb9H7vGurtEUIeo47W9JSHmKYotOO_B9BmMmdr9mZ2qAHK1lXy23w6zPq5qAe8Fkn_lLd2zMmTFbmKiu2Byf5cm&expires_in=86400&user_id=187352442&state=123456
 
@@ -13,3 +13,7 @@ MY_GROUP_TOKEN=vk1.a.0Oq9S0OytG5OMEXqUD7cyKogXLVpVnqz32NQF27siYjhGxjSEoGvX1KmrNa
 ID_VK_APP=51914485
 TOKEN_APP=vk1.a.oqu-m4PITaptdXe_N3RrbNPsdOwT5RAvE4YfD78Hwv7Tn4eAUZChCq979ISE783cIjc9wynJwjQ_xTZQXWYqs8LrbKGMFs6gvUits7_76Hb9H7vGurtEUIeo47W9JSHmKYotOO_B9BmMmdr9mZ2qAHK1lXy23w6zPq5qAe8Fkn_lLd2zMmTFbmKiu2Byf5cm
 USER_ID=187352442
+v
+
+
+vk1.a.SHTi4I4nPL8hSRMaDg7dGyIy6_-pi1ujLXTp70wRxrBkjokcnQvAu-IajheSfXVuK_qI8HoEeqi8-kCP5i1w5QnNBiG_pjRMH29W8KRIfP-juMX2WeiQQu45aU_EIvY_gfZYXFsFziHBiHVvmYpImecmebDvN4pSSv6ntNxPmgbltNaSxmLZ3UUuKVJ2OdlJ
