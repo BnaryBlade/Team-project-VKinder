@@ -1,7 +1,9 @@
+import sys
 from random import randrange
-# from datetime import datetime
+from datetime import datetime, date
 import traceback
 
+from selenium.common.exceptions import WebDriverException
 from vk_api import VkApi
 from vk_api.exceptions import ApiError
 from vk_api.keyboard import VkKeyboard
@@ -25,72 +27,71 @@ class UserVkApi(VkApi):
         self.last_name = ''
         self.sex = 0
         self.birthdate = ''
-        self.city = ''
+        self.city = {}
         self.interests = ''
         self._data_api_initialization()
+        self.search_params = {'sex': self.sex,
+                              'age_from': 30,
+                              'age_to': 35,
+                              'has_photo': 1}
+        self.fields = 'city,sex,bdate'
 
     def _data_api_initialization(self) -> None:
-        user_data = self._check_token_and_id()
-        if user_data is None:
-            print('Не получилось загрузить данные пользователя...')
-            return None
-        self.first_name = user_data['first_name']
-        self.last_name = user_data['last_name']
-        if birthdate := user_data['bdate']:
-            self.birthdate = birthdate
-        if city := user_data['city']:
-            self.city = city['title']
-        if interests := user_data['interests']:
-            self.interests = interests
-        if sex := int(user_data['sex']):
-            self.sex = sex
+        try:
+            user_data = self._check_token_and_id()[0]
+        except (WebDriverException, ApiError):
+            traceback.print_exc()
+            print('Не выполнена авторизация пользователя в UserVkApi...')
+            sys.exit(1)
+        else:
+            self.first_name = user_data['first_name']
+            self.last_name = user_data['last_name']
+            if birthdate := user_data['bdate']:
+                self.birthdate = birthdate
+            if city := user_data['city']:
+                self.city = city
+            if interests := user_data['interests']:
+                self.interests = interests
+            if sex := int(user_data['sex']):
+                self.sex = sex
 
-    def _check_token_and_id(self) -> dict | None:
+    def _check_token_and_id(self) -> dict:
+        """Проверяет токен и id пользователя.
+
+        Проверяет наличие и актуальност токена и id пользователя спомощью
+        запроса на получение данных пользователя, если запрос выдаёт
+        исключение, метод пробует произвести авторизацию пользователя.
+        :exception WebDriverException
+        :exception ApiError
+        :return:
+        """
         if self.token is not None and self.user_id is not None:
             try:
-                user_data = self.get_user_info()
-                return user_data[0] if user_data is not None else None
-            except ApiError:
-                traceback.print_exc()
+                return self.get_user_info()
+            except ApiError as e:
+                print(e)
         browser = vdt.get_browser(*vdt.get_paths())
-        if browser is not None:
-            redirect_uri = vdt.get_vk_redirect_uri(self.app_id, browser)
-            if redirect_uri is not None:
-                token, user_id = vdt.get_token_and_id(redirect_uri)
-                self.token = {'access_token': token}
-                self.user_id = user_id
-                print(f'Ваш новый токен: {token}')
-                user_data = self.get_user_info()
-                return user_data[0] if user_data is not None else None
-        return None
+        redirect_uri = vdt.get_vk_redirect_uri(self.app_id, browser)
+        token, user_id = vdt.get_token_and_id(redirect_uri)
+        self.token = {'access_token': token}
+        self.user_id = user_id
+        print(f'Ваш новый токен: {token}')
+        return self.get_user_info()
 
-    def get_user_info(self) -> list | None:
+    def get_user_info(self) -> dict:
+        """Метод возвращает данные пользователя по его id.
+        :exception ApiError:
+        :return:
+        """
         params = {
             'user_ids': self.user_id,
             'fields': 'city,bdate,sex,interests'
         }
-        try:
-            response = self.method(vdt.Meths.USERS_GET, params)
-            return response
-        except ApiError:
-            traceback.print_exc()
-            return None
+        return self.method(vdt.Meths.USERS_GET, params)
 
     def search_users(self, count: int) -> list | None:
-        params = {'count': 5, 'sex': 2, 'age_from': 35, 'age_to': 40,
-                  'has_photo': 1}
-        try:
-            response = self.method(vdt.Meths.USER_SEARCH, params)
-            return response
-        except ApiError:
-            traceback.print_exc()
-            return None
-
-    def print_user_info(self) -> None:
-        print('Данные пользователя:')
-        print(f'{self.first_name=}, {self.last_name=}')
-        print(f'{self.city=}, {self.interests=}, {self.user_id=}, {self.sex=}')
-        print(self.birthdate)
+        params = {'count': count, **self.search_params, 'fields': self.fields}
+        return self.method(vdt.Meths.USER_SEARCH, params)
 
 
 class BotVkApi(VkApi):
@@ -103,10 +104,10 @@ class BotVkApi(VkApi):
         # self.b_is_active = False
         self.id_list_of_people = {}
 
-    def show_keyboard(self, user_id: int) -> bool:
+    def show_keyboard(self, user_id: int, message: str,
+                      kb: VkKeyboard) -> bool:
         try:
-            self.write_msg(user_id, 'А вот и Я...',
-                           self.keyboard.get_keyboard())
+            self.write_msg(user_id, message, keyboard=kb.get_keyboard())
             return True
         except ApiError:
             traceback.print_exc()

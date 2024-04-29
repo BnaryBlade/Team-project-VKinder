@@ -66,6 +66,7 @@ class ModelDb:
         self._port = port
         self._adapter = db_adapter
         self.engine = self._create_engine(login, password)
+        self.users = []
 
     def _create_engine(self, login: str, password: str) -> sq.Engine:
         dsn = (f'postgresql+{self._adapter}://{login}:{password}@'

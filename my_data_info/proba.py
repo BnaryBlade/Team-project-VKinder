@@ -1,22 +1,17 @@
-my_str = 'https://oauth.vk.com/blank.html#access_token=vk1.a.hUyi5SWPPqeCXcgfS6aGw2uwFj7OUiq7MoiL5XJYXpsxHVOlqsS4iWmAGCMlTWeW50FGmmufiL29JcvITzrhkj5dmAU5hXmb3HFJvsknerxfxnsLRwU01OC5J2SAN0OUefunGhX7Bkp2U4n2fQKWYLmMPKKEqyc03XyBXoNxr961YxCxrRcnNjNrFsivIOpK&expires_in=86400&user_id=187352442&state=123456'
-token = my_str.split('=')[1].replace('&expires_in', '')
-user_id = my_str.split('=')[3].replace('&state', '')
-print(token)
-print(user_id)
-print(str(), type(str()))
+from datetime import datetime, timedelta, date
 
 
-class Ffff:
 
-    def __init__(self):
-        pass
+DATE_FORMAT = '%d.%m.%Y'
+my_date = '18.09.1985'
 
-    def dsf(self):
-        pass
+birthday = datetime.strptime(my_date, DATE_FORMAT)
+print(birthday)
+curr_time = datetime.now()
+diff_second = (curr_time - birthday).total_seconds()
+print(diff_second)
+print(datetime.now().year - birthday.year)
 
-    def some_print(self):
-        print(type(self.dsf))
+print(datetime(5, 1, 1))
 
-
-fff = Ffff()
-fff.some_print()
+# print(datetime(microsecond=100000))

@@ -1,12 +1,11 @@
 import os
 from enum import StrEnum
-import traceback
 
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from webdriver_manager.firefox import GeckoDriverManager
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
-from selenium.common.exceptions import WebDriverException, TimeoutException
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
@@ -21,7 +20,7 @@ def get_paths() -> tuple[str, str]:
 
 
 def get_browser(binary_loc: str | None = None,
-                driver_loc: str | None = None) -> webdriver.Firefox | None:
+                driver_loc: str | None = None) -> webdriver.Firefox:
     """Возращает объект webdriver Firefox.
 
     Функция создаёт и возвращает драйвер Firefox. Первоначально происходит
@@ -37,6 +36,7 @@ def get_browser(binary_loc: str | None = None,
     :type binary_loc: str or None
     :param driver_loc: путь к компоненту geckodriver
     :type driver_loc: str
+    :exception WebDriverException:
     :return:
     """
     opts = webdriver.FirefoxOptions()
@@ -45,17 +45,11 @@ def get_browser(binary_loc: str | None = None,
         return webdriver.Firefox(service=br_service, options=opts)
     except WebDriverException:
         print('GeckoDriverManager из webdriver_manager не запустился...')
-        traceback.print_exc()
     opts.binary_location = binary_loc
-    try:
-        return webdriver.Firefox(service=Service(driver_loc), options=opts)
-    except WebDriverException:
-        print('Не получилось создать WebDriver...')
-        traceback.print_exc()
-        return None
+    return webdriver.Firefox(service=Service(driver_loc), options=opts)
 
 
-def get_vk_redirect_uri(app_id: int, browser: webdriver.Firefox) -> str | None:
+def get_vk_redirect_uri(app_id: int, browser: webdriver.Firefox) -> str:
     """Возвращает строковое представление адрессной строки Вконтакте.
 
     Использую объект переданного webdriver-a, функция запускает процедуру
@@ -68,26 +62,23 @@ def get_vk_redirect_uri(app_id: int, browser: webdriver.Firefox) -> str | None:
     :param browser: объект WebDriver: Firefox, Chrome, Safari...
     :type browser: WebDriver
     :return:
+    :exception WebDriverException:
     """
     url = ('https://oauth.vk.com/authorize'
            f'?client_id={app_id}'
            '&display=page&redirect_uri=https://oauth.vk.com/blank.html'
            '&scope=1030&response_type=token&v=5.191&state=123456')
-    with browser:
-        browser.get(url)
-        try:
-            WebDriverWait(browser, 180).until(
-                ec.presence_of_element_located(
-                    (By.XPATH, '//body/b[1][text()="не копируйте"]')
-                ),
-                message='Превышено время ожидания авторицации...'
-            )
-            return browser.current_url
-        except TimeoutException:
-            traceback.print_exc()
-            return None
-        finally:
-            browser.quit()
+    browser.get(url)
+    try:
+        WebDriverWait(browser, 180).until(
+            ec.presence_of_element_located(
+                (By.XPATH, '//body/b[1][text()="не копируйте"]')
+            ),
+            message='Превышено время ожидания авторицации...'
+        )
+        return browser.current_url
+    finally:
+        browser.quit()
 
 
 def get_token_and_id(redirect_uri: str) -> tuple[str, str]:
@@ -95,8 +86,7 @@ def get_token_and_id(redirect_uri: str) -> tuple[str, str]:
 
     На вход подаётся строковое представление адрессной строки страницы
     регистрации Вконтакте
-    :param redirect_uri: адресная строка страницы передресации при регистрации
-    :type redirect_uri: str
+    :param redirect_uri: адресная строка страницы переадресации при регистрации
     :return:
     """
     token = redirect_uri.split('=')[1].replace('&expires_in', '')
@@ -116,30 +106,110 @@ def get_dialog_keyboard() -> VkKeyboard:
     keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
     return keyboard
 
-def get_dialog_action() -> dict:
-    key_word = {'привет': self.show_keyboard,
-                'exit': self.exit_from_vkbot,
-                'хватит': self.hide_keyboard}
 
-
-class Keyboards:
+class ActionInterface:
 
     def __init__(self):
+        self.kb_is_act = False
+        self.curr_action = {}
+        self.curr_kb = None
+
+    def get_start_dialog_kb(self) -> tuple[VkKeyboard, dict]:
+        keyboard = VkKeyboard()
+        keyboard.add_button('найти Далёких странников',
+                            VkKeyboardColor.SECONDARY,
+                            {'type': 'my_button'})
+        keyboard.add_line()
+        keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
+        key_word = {'найти Далёких странников': self.search_people,
+                    'type': self.search_people,
+                    'exit': self.exit_from_vkbot,
+                    'хватит': self.stop_bot_dialog}
+        return keyboard, key_word
+
+    def get_criteria_selection_kb(self) -> tuple[VkKeyboard, dict]:
+        keyboard = VkKeyboard()
+        keyboard.add_button('город', VkKeyboardColor.SECONDARY)
+        keyboard.add_button('возраст', VkKeyboardColor.SECONDARY)
+        keyboard.add_button('пол', VkKeyboardColor.POSITIVE)
+        keyboard.add_line()
+        keyboard.add_button('интересы', VkKeyboardColor.POSITIVE)
+        keyboard.add_button('резерв №1', VkKeyboardColor.POSITIVE)
+        keyboard.add_button('резерв №2', VkKeyboardColor.POSITIVE)
+        keyboard.add_line()
+        keyboard.add_button('показывай', VkKeyboardColor.SECONDARY)
+        keyboard.add_line()
+        keyboard.add_button('назад', VkKeyboardColor.NEGATIVE)
+        keyboard.add_line()
+        keyboard.add_button('хватит', VkKeyboardColor.POSITIVE)
+        key_word = {'назад': self.come_back,
+                    'город': self.choose_city,
+                    'возраст': self.choose_age,
+                    'пол': self.choose_sex,
+                    'интересы': self.choose_sex,
+                    'резерв №1': self.choose_reserve_1,
+                    'резерв №2': self.choose_reserve_2,
+                    'показывай': self.start_browsing,
+                    'exit': self.exit_from_vkbot,
+                    'хватит': self.stop_bot_dialog}
+        return keyboard, key_word
+
+    def get_queue_kb(self) -> tuple[VkKeyboard, dict]:
+        keyboard = VkKeyboard()
+        keyboard.add_button('не интересно', VkKeyboardColor.SECONDARY)
+        keyboard.add_button('интересно', VkKeyboardColor.SECONDARY)
+        keyboard.add_line()
+        keyboard.add_button('следующий', VkKeyboardColor.SECONDARY)
+        keyboard.add_line()
+        keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
+        key_word = {'не интересно': self.add_to_blacklist,
+                    'интересно': self.add_to_favorites,
+                    'следующий': self.show_next_user,
+                    'exit': self.exit_from_vkbot,
+                    'хватит': self.stop_bot_dialog}
+        return keyboard, key_word
+
+    def start_bot_dialog(self):
+        self.curr_kb, self.curr_action = self.get_start_dialog_kb()
+
+    def exit_from_vkbot(self):
         pass
 
-    key_word = {'привет': self.show_keyboard,
-                'exit': self.exit_from_vkbot,
-                'хватит': self.hide_keyboard}
+    def stop_bot_dialog(self):
+        pass
 
-def get_selection_keyboard() -> VkKeyboard:
-    keyboard = VkKeyboard()
-    keyboard.add_button('следующий', VkKeyboardColor.SECONDARY)
-    keyboard.add_button('предыдущий', VkKeyboardColor.SECONDARY)
-    keyboard.add_line()
-    keyboard.add_button('не интересно', VkKeyboardColor.NEGATIVE)
-    keyboard.add_line()
-    keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
-    return keyboard
+    def search_people(self):
+        self.curr_kb, self.curr_action = self.get_criteria_selection_kb()
+
+    def come_back(self):
+        self.curr_kb, self.curr_action = self.get_start_dialog_kb()
+
+    def choose_city(self):
+        pass
+
+    def choose_age(self):
+        pass
+
+    def choose_sex(self):
+        pass
+
+    def choose_reserve_1(self):
+        pass
+
+    def choose_reserve_2(self):
+        pass
+
+    def start_browsing(self):
+        self.curr_kb, self.curr_action = self.get_queue_kb()
+
+    def add_to_blacklist(self):
+        pass
+
+    def add_to_favorites(self):
+        pass
+
+    def show_next_user(self):
+        pass
 
 
 class Meths(StrEnum):
