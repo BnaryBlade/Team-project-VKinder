@@ -9,6 +9,7 @@ from vk_data import ActionInterface
 lgn_db = os.environ['LOGIN_DB']
 pass_db = os.environ['PASSWORD_DB']
 grp_token = os.environ['GROUP_TOKEN']
+my_group_token = os.environ['MY_GROUP_TOKEN']
 
 app_id = int(os.environ['APP_ID'])
 my_token = os.environ['TOKEN']
@@ -53,7 +54,7 @@ class Bot(ModelDb, ActionInterface):
         if (action := self.curr_action.get(event.text)) is not None:
             action()
         else:
-            self.api._send_msg(
+            self.api.write_msg(
                 self.curr_id,
                 'Я не совсем понимаю, чего вы от меня хотите...'
             )
@@ -163,4 +164,4 @@ class Bot(ModelDb, ActionInterface):
 if __name__ == '__main__':
     bot = Bot(grp_token, lgn_db, pass_db, my_token, my_id)
     bot.start()
-    # print(bot.user_api.search_users(5))
+    # print(bot.user_api.search_users(1))

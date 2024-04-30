@@ -6,7 +6,7 @@ from datetime import datetime
 from vk_api import VkApi
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
-import vk_data as vdt
+# import vk_data as vdt
 
 
 class MyApi(VkApi):

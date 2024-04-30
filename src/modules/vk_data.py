@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from enum import StrEnum
 
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
@@ -183,8 +184,8 @@ class ActionInterface:
 
     def _get_viewing_history_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button('cледующий', VkKeyboardColor.SECONDARY)
         keyboard.add_button('предыдущий', VkKeyboardColor.SECONDARY)
+        keyboard.add_button('cледующий', VkKeyboardColor.SECONDARY)
         keyboard.add_line()
         keyboard.add_button('назад', VkKeyboardColor.NEGATIVE)
         keyboard.add_line()
@@ -268,10 +269,32 @@ class Meths(StrEnum):
     USERS_GET = 'users.get'
     MESSAGES_SEND = 'messages.send'
     USER_SEARCH = 'users.search'
+    MESSAGES_EDIT = 'messages.edit'
 
 
 class User:
+    """Класс, описывающий пользователя социальной сети Вконтакте.
 
-    def __init__(self, user_id):
-        self.id = user_id
+    Класс на вход принимает один параметр - item, находящийяся, в ответе на
+    запрос 'users.search', в поле 'items'.
+    :param data: является словарeм, описывающим поля пользователя
+    """
 
+    DT_FORMAT = '%d.%m.%Y'
+
+    def __init__(self, data: dict):
+        self.id: int = data.get('id', 0)
+        self.first_name: str = data.get('first_name', '')
+        self.last_name: str = data.get('last_name', '')
+        self.bdate: str = data.get('bdate', '')
+        self.city_id: int | None = data.get('city', {}).get('id')
+        self.city_title: str = data.get('city', {}).get('id')
+        self.sex: int = data.get('sex', 0)
+        self.have_access = data.get('can_access_closed', False)
+        self.is_closed = data.get('is_closed', True)
+
+    def get_age(self) -> int:
+        birthday = datetime.strptime(self.bdate, self.DT_FORMAT)
+        cur_day = datetime.now()
+        y, m, d = birthday.year, cur_day.month, cur_day.day
+        return cur_day.year - y - (birthday > datetime(y, m, d))

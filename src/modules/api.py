@@ -87,7 +87,7 @@ class UserVkApi(VkApi):
         }
         return self.method(vdt.Meths.USERS_GET, params)
 
-    def search_users(self, count: int) -> list | None:
+    def search_users(self, count: int) -> dict:
         params = {'count': count, **self.search_params, 'fields': self.fields}
         return self.method(vdt.Meths.USER_SEARCH, params)
 
@@ -121,13 +121,24 @@ class BotVkApi(VkApi):
         random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
                   'message': message,
-                  'random_id': random_id}
-        if kb:
-            values.update({'keyboard': kb})
+                  'random_id': random_id,
+                  'keyboard': kb}
         try:
             self.method(vdt.Meths.MESSAGES_SEND, values)
             return True
         except ApiError:
             traceback.print_exc()
             print('Не получилось отпарвить сообщение...')
+            return False
+
+    def _edit_msg(self, user_id: int, message: str, kb='') -> bool:
+        values = {'user_id': user_id,
+                  'message': message,
+                  'keyboard': kb}
+        try:
+            self.method(vdt.Meths.MESSAGES_EDIT, values)
+            return True
+        except ApiError:
+            traceback.print_exc()
+            print('Не получилось изменить сообщение сообщение...')
             return False
