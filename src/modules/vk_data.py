@@ -94,19 +94,6 @@ def get_token_and_id(redirect_uri: str) -> tuple[str, str]:
     return token, user_id
 
 
-def get_dialog_keyboard() -> VkKeyboard:
-    keyboard = VkKeyboard()
-    keyboard.add_button('следующий', VkKeyboardColor.SECONDARY)
-    keyboard.add_button('покажи выбраных', VkKeyboardColor.POSITIVE)
-    keyboard.add_button('предыдущий', VkKeyboardColor.SECONDARY)
-    keyboard.add_line()
-    keyboard.add_button('не интересно', VkKeyboardColor.NEGATIVE)
-    keyboard.add_button('ИНТЕРЕСНО', VkKeyboardColor.POSITIVE)
-    keyboard.add_line()
-    keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
-    return keyboard
-
-
 class ActionInterface:
 
     def __init__(self):
@@ -114,20 +101,43 @@ class ActionInterface:
         self.curr_action = {}
         self.curr_kb = None
 
-    def get_start_dialog_kb(self) -> tuple[VkKeyboard, dict]:
+    def _get_start_dialog_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
         keyboard.add_button('найти Далёких странников',
-                            VkKeyboardColor.SECONDARY,
-                            {'type': 'my_button'})
+                            VkKeyboardColor.SECONDARY)
         keyboard.add_line()
         keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
-        key_word = {'найти Далёких странников': self.search_people,
-                    'type': self.search_people,
-                    'exit': self.exit_from_vkbot,
-                    'хватит': self.stop_bot_dialog}
+        key_word = {'найти Далёких странников': self._go_choose_view_options,
+                    'exit': self._exit_from_vkbot,
+                    'хватит': self._stop_bot_dialog}
         return keyboard, key_word
 
-    def get_criteria_selection_kb(self) -> tuple[VkKeyboard, dict]:
+    def _get_choosing_actions_kb(self) -> tuple[VkKeyboard, dict]:
+        keyboard = VkKeyboard()
+        keyboard.add_button('найти новых людей', VkKeyboardColor.SECONDARY)
+        keyboard.add_line()
+        keyboard.add_button('показать людей из черного списка',
+                            VkKeyboardColor.POSITIVE)
+        keyboard.add_button('показать избранных', VkKeyboardColor.POSITIVE)
+        keyboard.add_line()
+        keyboard.add_button('очистить историю просмотра',
+                            VkKeyboardColor.POSITIVE)
+        keyboard.add_button('очистить черный список',
+                            VkKeyboardColor.POSITIVE)
+        keyboard.add_line()
+        keyboard.add_button('хватит', VkKeyboardColor.POSITIVE)
+        key_word = {
+            'найти новых людей': self._go_search_people,
+            'показать людей из черного списка': self._go_blacklist_view,
+            'показать избранных': self._go_favorites_view,
+            'очистить историю просмотра': self._clear_history,
+            'очистить черный список': self._clear_blacklist,
+            'exit': self._exit_from_vkbot,
+            'хватит': self._stop_bot_dialog
+        }
+        return keyboard, key_word
+
+    def _get_criteria_selection_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
         keyboard.add_button('город', VkKeyboardColor.SECONDARY)
         keyboard.add_button('возраст', VkKeyboardColor.SECONDARY)
@@ -142,73 +152,115 @@ class ActionInterface:
         keyboard.add_button('назад', VkKeyboardColor.NEGATIVE)
         keyboard.add_line()
         keyboard.add_button('хватит', VkKeyboardColor.POSITIVE)
-        key_word = {'назад': self.come_back,
-                    'город': self.choose_city,
-                    'возраст': self.choose_age,
-                    'пол': self.choose_sex,
-                    'интересы': self.choose_sex,
-                    'резерв №1': self.choose_reserve_1,
-                    'резерв №2': self.choose_reserve_2,
-                    'показывай': self.start_browsing,
-                    'exit': self.exit_from_vkbot,
-                    'хватит': self.stop_bot_dialog}
+        key_word = {'назад': self._come_back,
+                    'город': self._choose_city,
+                    'возраст': self._choose_age,
+                    'пол': self._choose_sex,
+                    'интересы': self._choose_sex,
+                    'резерв №1': self._choose_reserve_1,
+                    'резерв №2': self._choose_reserve_2,
+                    'показывай': self._go_browsing,
+                    'exit': self._exit_from_vkbot,
+                    'хватит': self._stop_bot_dialog}
         return keyboard, key_word
 
-    def get_queue_kb(self) -> tuple[VkKeyboard, dict]:
+    def _get_queue_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
         keyboard.add_button('не интересно', VkKeyboardColor.SECONDARY)
         keyboard.add_button('интересно', VkKeyboardColor.SECONDARY)
         keyboard.add_line()
         keyboard.add_button('следующий', VkKeyboardColor.SECONDARY)
         keyboard.add_line()
+        keyboard.add_button('назад', VkKeyboardColor.PRIMARY)
         keyboard.add_button('хватит', VkKeyboardColor.PRIMARY)
-        key_word = {'не интересно': self.add_to_blacklist,
-                    'интересно': self.add_to_favorites,
-                    'следующий': self.show_next_user,
-                    'exit': self.exit_from_vkbot,
-                    'хватит': self.stop_bot_dialog}
+        key_word = {'не интересно': self._add_to_blacklist,
+                    'интересно': self._add_to_favorites,
+                    'следующий': self._show_next_user,
+                    'назад': self._come_back,
+                    'exit': self._exit_from_vkbot,
+                    'хватит': self._stop_bot_dialog}
         return keyboard, key_word
 
-    def start_bot_dialog(self):
-        self.curr_kb, self.curr_action = self.get_start_dialog_kb()
+    def _get_viewing_history_kb(self) -> tuple[VkKeyboard, dict]:
+        keyboard = VkKeyboard()
+        keyboard.add_button('cледующий', VkKeyboardColor.SECONDARY)
+        keyboard.add_button('предыдущий', VkKeyboardColor.SECONDARY)
+        keyboard.add_line()
+        keyboard.add_button('назад', VkKeyboardColor.NEGATIVE)
+        keyboard.add_line()
+        keyboard.add_button('хватит', VkKeyboardColor.POSITIVE)
+        key_word = {'cледующий': self._show_next_user,
+                    'предыдущий': self._show_previous_user,
+                    'назад': self._come_back,
+                    'exit': self._exit_from_vkbot,
+                    'хватит': self._stop_bot_dialog}
+        return keyboard, key_word
 
-    def exit_from_vkbot(self):
+    # Реализация комыды "exit" и кнопки "хватит", общих для всего интерфейса
+    def _exit_from_vkbot(self):
         pass
 
-    def stop_bot_dialog(self):
+    def _stop_bot_dialog(self):
         pass
 
-    def search_people(self):
-        self.curr_kb, self.curr_action = self.get_criteria_selection_kb()
-
-    def come_back(self):
-        self.curr_kb, self.curr_action = self.get_start_dialog_kb()
-
-    def choose_city(self):
+    # Реализация интерфейса стартовой клавиатуры
+    def _start_bot_dialog(self):
         pass
 
-    def choose_age(self):
+    def _go_choose_view_options(self):
         pass
 
-    def choose_sex(self):
+    # Реализация клавиатуры выбора вариантов просмотра пользователей
+    def _go_search_people(self):
         pass
 
-    def choose_reserve_1(self):
+    def _go_blacklist_view(self):
         pass
 
-    def choose_reserve_2(self):
+    def _go_favorites_view(self):
         pass
 
-    def start_browsing(self):
-        self.curr_kb, self.curr_action = self.get_queue_kb()
-
-    def add_to_blacklist(self):
+    def _clear_history(self):
         pass
 
-    def add_to_favorites(self):
+    def _clear_blacklist(self):
         pass
 
-    def show_next_user(self):
+    # Реализация клавиатуры выбора опций поиска новых лидей
+    def _choose_city(self):
+        pass
+
+    def _choose_age(self):
+        pass
+
+    def _choose_sex(self):
+        pass
+
+    def _choose_reserve_1(self):
+        pass
+
+    def _choose_reserve_2(self):
+        pass
+
+    def _go_browsing(self):
+        pass
+
+    # Реализация клавивтуры просмотра новых пользователей
+    def _add_to_blacklist(self):
+        pass
+
+    def _add_to_favorites(self):
+        pass
+
+    # Реализация кнопки "предыдущий" клвавиатуры просмотра избранных
+    def _show_previous_user(self):
+        pass
+
+    # Реализация кнопки "назад" и "следующий" общей для нескольких клавиатур
+    def _come_back(self):
+        pass
+
+    def _show_next_user(self):
         pass
 
 
@@ -216,3 +268,10 @@ class Meths(StrEnum):
     USERS_GET = 'users.get'
     MESSAGES_SEND = 'messages.send'
     USER_SEARCH = 'users.search'
+
+
+class User:
+
+    def __init__(self, user_id):
+        self.id = user_id
+

@@ -1,12 +1,10 @@
 import sys
 from random import randrange
-from datetime import datetime, date
 import traceback
 
 from selenium.common.exceptions import WebDriverException
 from vk_api import VkApi
 from vk_api.exceptions import ApiError
-from vk_api.keyboard import VkKeyboard
 
 import vk_data as vdt
 
@@ -100,40 +98,36 @@ class BotVkApi(VkApi):
                  app_id: int = 6222115) -> None:
         super().__init__(token=group_token, app_id=app_id,
                          api_version=api_version)
-        self.keyboard: VkKeyboard = vdt.get_dialog_keyboard()
-        # self.b_is_active = False
         self.id_list_of_people = {}
 
-    def show_keyboard(self, user_id: int, message: str,
-                      kb: VkKeyboard) -> bool:
-        try:
-            self.write_msg(user_id, message, keyboard=kb.get_keyboard())
+    def show_kb(self, user_id: int, message: str, kb='') -> bool:
+        if self._send_msg(user_id, message, kb):
             return True
-        except ApiError:
-            traceback.print_exc()
+        else:
+            print('Не получилось отообразить клавиатуру...')
             return False
 
-    def hide_keyboard(self, user_id: int,
-                      message='Мне пора, счастливо!!!') -> bool:
-        try:
-            self.write_msg(user_id, message,
-                           self.keyboard.get_empty_keyboard())
+    def hide_kb(self, user_id: int, message: str, kb='') -> bool:
+        if self._send_msg(user_id, message, kb):
             return True
-        except ApiError:
-            traceback.print_exc()
+        else:
+            print('Не получилось отключить клавиатуру...')
             return False
 
-    def write_msg(self, user_id: int, message: str, keyboard: str = '',
-                  random_id=False) -> bool:
-        message_id = randrange(10 ** 7) if random_id else 0
+    def write_msg(self, user_id: int, message: str) -> bool:
+        return self._send_msg(user_id, message)
+
+    def _send_msg(self, user_id: int, message: str, kb='', r_id=False) -> bool:
+        random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
                   'message': message,
-                  'random_id': message_id}
-        if keyboard:
-            values.update({'keyboard': keyboard})
+                  'random_id': random_id}
+        if kb:
+            values.update({'keyboard': kb})
         try:
             self.method(vdt.Meths.MESSAGES_SEND, values)
             return True
         except ApiError:
             traceback.print_exc()
+            print('Не получилось отпарвить сообщение...')
             return False

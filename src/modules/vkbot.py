@@ -9,7 +9,6 @@ from vk_data import ActionInterface
 lgn_db = os.environ['LOGIN_DB']
 pass_db = os.environ['PASSWORD_DB']
 grp_token = os.environ['GROUP_TOKEN']
-my_grp_token = os.environ['MY_GROUP_TOKEN']
 
 app_id = int(os.environ['APP_ID'])
 my_token = os.environ['TOKEN']
@@ -47,94 +46,121 @@ class Bot(ModelDb, ActionInterface):
                     self.select_action(event)
                 elif event.text == 'bot':
                     self.bot_is_sleep = False
-                    self.start_bot_dialog()
+                    self._start_bot_dialog()
         self.curr_id = None
 
     def select_action(self, event: Event) -> None:
         if (action := self.curr_action.get(event.text)) is not None:
             action()
         else:
-            self.api.write_msg(
+            self.api._send_msg(
                 self.curr_id,
                 'Я не совсем понимаю, чего вы от меня хотите...'
             )
 
-    def show_keyboard(self, message: str):
-        if bot.api.show_keyboard(self.curr_id, message, self.curr_kb):
-            self.kb_is_act = True
-
-    def exit_from_vkbot(self):
-        if self.api.hide_keyboard(self.curr_id, 'Убил...'):
+    def _exit_from_vkbot(self) -> None:
+        message = 'Убил...'
+        if self.api.hide_kb(self.curr_id, message,
+                            self.curr_kb.get_empty_keyboard()):
             self.kb_is_act = False
-        else:
-            print('Не получилось отключить клавиатуру...')
         self.bot_is_act = False
 
-    def hide_keyboard(self):
-        if self.bot_is_act:
-            if self.api.hide_keyboard(self.curr_id):
-                self.kb_is_act = False
-            else:
-                print('Не получилось убрать клавиатуру')
-
-    def start_bot_dialog(self):
-        super().start_bot_dialog()
+    def _start_bot_dialog(self) -> None:
+        self.curr_kb, self.curr_action = self._get_start_dialog_kb()
         message = 'А вот и я... :-)'
-        self.show_keyboard(message)
+        if bot.api.show_kb(self.curr_id, message,
+                           self.curr_kb.get_keyboard()):
+            self.kb_is_act = True
 
-    def stop_bot_dialog(self):
-        self.hide_keyboard()
+    def _stop_bot_dialog(self):
+        if self.bot_is_act:
+            message = 'Ладно, и мне пора... :-)'
+            if self.api.hide_kb(self.curr_id, message,
+                                self.curr_kb.get_empty_keyboard()):
+                self.kb_is_act = False
         self.bot_is_sleep = True
 
-    def search_people(self):
-        super().search_people()
-        message = 'Давай выберем критерии поиска... :-)'
-        self.show_keyboard(message)
+    def _go_choose_view_options(self):
+        self.curr_kb, self.curr_action = self._get_choosing_actions_kb()
+        message = 'Где будем просматривать?'
+        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
 
-    def come_back(self):
-        super().come_back()
+    def _go_blacklist_view(self):
+        self.curr_kb, self.curr_action = self._get_viewing_history_kb()
+        message = 'Посмотрим...'
+        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
+
+    def _go_favorites_view(self):
+        self.curr_kb, self.curr_action = self._get_viewing_history_kb()
+        message = 'Посмотрим...'
+        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
+
+    def _go_search_people(self):
+        self.curr_kb, self.curr_action = self._get_criteria_selection_kb()
+        message = 'Можете выбрать критерии поиска...'
+        if bot.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard()):
+            self.kb_is_act = True
+            self.api.write_msg(
+                self.curr_id,
+                'По умолчанию буду ориентироваться на ваши данные...:-)'
+            )
+
+    def _clear_history(self):
+        message = 'Пока ещё не реализовали...'
+        self.api.write_msg(self.curr_id, message)
+
+    def _clear_blacklist(self):
+        message = 'Пока ещё не реализовали...'
+        self.api.write_msg(self.curr_id, message)
+
+    def _come_back(self):
+        self.curr_kb, self.curr_action = self._get_choosing_actions_kb()
         message = 'Передумали... :-('
-        self.show_keyboard(message)
+        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
 
-    def choose_city(self):
+    def _choose_city(self):
         message = 'Пока ещё не реализовали...'
         self.api.write_msg(self.curr_id, message)
 
-    def choose_age(self):
+    def _choose_age(self):
         message = 'Пока ещё не реализовали...'
         self.api.write_msg(self.curr_id, message)
 
-    def choose_sex(self):
+    def _choose_sex(self):
         message = 'Пока ещё не реализовали...'
         self.api.write_msg(self.curr_id, message)
 
-    def choose_reserve_1(self):
+    def _choose_reserve_1(self):
         message = 'Пока ещё не реализовали...'
         self.api.write_msg(self.curr_id, message)
 
-    def choose_reserve_2(self):
+    def _choose_reserve_2(self):
         message = 'Пока ещё не реализовали...'
         self.api.write_msg(self.curr_id, message)
 
-    def start_browsing(self):
-        super().start_browsing()
-        message = 'Пока ещё не реализовали...'
-        self.show_keyboard(message)
+    def _go_browsing(self):
+        self.curr_kb, self.curr_action = self._get_queue_kb()
+        message = 'Поищем...'
+        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
 
-    def add_to_blacklist(self):
-        message = 'Пока ещё не реализовали...'
-        self.api.write_msg(self.curr_id, message)
-
-    def add_to_favorites(self):
+    def _add_to_blacklist(self):
         message = 'Пока ещё не реализовали...'
         self.api.write_msg(self.curr_id, message)
 
-    def show_next_user(self):
+    def _add_to_favorites(self):
+        message = 'Пока ещё не реализовали...'
+        self.api.write_msg(self.curr_id, message)
+
+    def _show_previous_user(self):
+        message = 'Пока ещё не реализовали...'
+        self.api.write_msg(self.curr_id, message)
+
+    def _show_next_user(self):
         message = 'Пока ещё не реализовали...'
         self.api.write_msg(self.curr_id, message)
 
 
 if __name__ == '__main__':
     bot = Bot(grp_token, lgn_db, pass_db, my_token, my_id)
-    print(bot.user_api.search_users(5))
-    # bot.start()
+    bot.start()
+    # print(bot.user_api.search_users(5))
