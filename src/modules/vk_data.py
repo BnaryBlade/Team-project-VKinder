@@ -183,8 +183,8 @@ class ActionInterface:
 
     def _get_viewing_history_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button('cледующий', VkKeyboardColor.SECONDARY)
         keyboard.add_button('предыдущий', VkKeyboardColor.SECONDARY)
+        keyboard.add_button('cледующий', VkKeyboardColor.SECONDARY)
         keyboard.add_line()
         keyboard.add_button('назад', VkKeyboardColor.NEGATIVE)
         keyboard.add_line()
@@ -274,4 +274,3 @@ class User:
 
     def __init__(self, user_id):
         self.id = user_id
-
