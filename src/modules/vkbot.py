@@ -6,7 +6,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType, Event
 
 from db import ModelDb
 from api import UserVkApi, BotVkApi
-from vk_data import ActionInterface
+from classes import ActionInterface
 
 lgn_db = os.environ['LOGIN_DB']
 pass_db = os.environ['PASSWORD_DB']
@@ -20,6 +20,7 @@ my_id = int(os.environ['USER_ID'])
 
 class Bot(ModelDb, ActionInterface):
     AGE_PATTERN = re.compile(r'\d{1,3}')
+    SEX_PATTERN = re.compile(r'')
 
     def __init__(self, group_token: str,
                  login_db: str,
@@ -29,11 +30,13 @@ class Bot(ModelDb, ActionInterface):
                  db_name='vk_bot_db', ) -> None:
         super().__init__(login=login_db, password=password_db, db_name=db_name)
         self.user_api = UserVkApi(token=user_token, user_id=user_id)
+
         self.api = BotVkApi(group_token=group_token)
         self.bot_is_act = False
         self.bot_is_sleep = True
         self.curr_id: int | None = None
         self.another_action: Any = None
+        # self.offset
 
     def start(self) -> None:
         self.bot_is_act = True
@@ -133,30 +136,45 @@ class Bot(ModelDb, ActionInterface):
         if all_ages := self.AGE_PATTERN.findall(event.text):
             try:
                 all_ages = list(
-                    filter(lambda x: x in range(1, 120), map(int, all_ages))
+                    filter(lambda age: 0 < age < 120, map(int, all_ages))
                 )
                 age_from, age_to = min(all_ages), max(all_ages)
             except ValueError:
                 self.api.write_msg(
                     self.curr_id,
-                    'Что-то я не понял какой ищем возраст...')
+                    'Что-то я не понял какой возраст мне искать...')
             else:
-                message = ('Хорошо, я буду искать людей возрастом от'
-                           f' {age_from} до {age_to} лет...')
-                self.api.write_msg(self.curr_id, message)
-                message = 'Если я не правильно понял выберите возраст снова...'
-                self.api.write_msg(self.curr_id, message)
-                self._go_choose_view_options('уже смотрим...?')
+                message = (
+                    f'''
+                    Выбранные критерии поиска людей:
+                        - возраст от {age_from} до {age_to};
+                        - пол - женский;
+                        - город - ваш;
+                    Что-то изменим, или перейдём к просмотру? :-)
+                    '''
+                )
+                self._go_search_people(message)
         else:
             self.api.write_msg(self.curr_id,
                                'Вы не указали ни одного возраста...')
             self.api.write_msg(
                 self.curr_id,
-                '''Если передумали - наберите "нзад", чтобы вернуться'
-                ' или "хватит, чтобы прервать диалог..."''')
+                ('Если передумали - наберите "нзад", чтобы вернуться'
+                 ' или "хватит, чтобы прервать диалог..."'))
 
-    def _choose_sex(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+    def _choose_sex(self, message='Укажите, кто вас интересует:') -> None:
+        if self.api.hide_kb(self.curr_id, message,
+                            self.curr_kb.get_empty_keyboard()):
+            self.curr_action = {self.KeyWord.ENOUGH: self._stop_bot_dialog,
+                                self.KeyWord.EXIT: self._exit_from_vkbot,
+                                self.KeyWord.COME_BACK: self._come_back}
+            self.another_action = self._checking_sex_input
+            self.api.write_msg(self.curr_id, '- не имеет значения: "0";')
+            self.api.write_msg(self.curr_id, '- люди женского пола: "1";')
+            self.api.write_msg(self.curr_id, '- люди мужского пола: "2".')
+
+    def _checking_sex_input(self, event: Event) -> None:
+        self.api.write_msg(self.curr_id, ' - '.join([event.text, 'мой ответ']))
 
     def _choose_interests(self, message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.curr_id, message)
@@ -195,5 +213,5 @@ class Bot(ModelDb, ActionInterface):
 
 if __name__ == '__main__':
     bot = Bot(my_group_token, lgn_db, pass_db, my_token, my_id)
-    bot.start()
-    # print(bot.user_api.search_users(1))
+    # bot.start()
+    print(bot.user_api.search_users(5))
