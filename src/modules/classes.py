@@ -1,10 +1,24 @@
-import os
 from datetime import datetime
 from enum import StrEnum
 
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
 from api import UserVkApi
+
+
+class Photo:
+
+    def __init__(self, data: dict):
+        self.album_id = data.get('album_id', 0)
+        self.date = data.get('date', 0)
+        self.owner_id = data.get('owner_id', 0)
+        self.photo_id = data.get('id', 0)
+        self.photo_sizes = data.get('sizes', [])
+        self.photo_link = data.get('sizes', [])[-1].get('url', '')
+        self.count_likes = data.get('likes', {}).get('count', 0)
+        self.user_likes = data.get('likes', {}).get('user_likes', 0)
+        self.web_view_token = data.get('web_view_token', '')
+        self.user_mark = False
 
 
 class User:
@@ -26,10 +40,12 @@ class User:
         self.city_id: int = data.get('city', {}).get('id', 0)
         self.city_title: str = data.get('city', {}).get('id', '')
         self.sex: int = data.get('sex', 0)
+        self.list_photos: list[Photo] = []
 
     def get_age(self) -> int:
         if self.bdate:
-            birthday = datetime.strptime(self.bdate, self.DT_FORMAT)
+            day, month, year = map(int, self.bdate.split('.'))
+            birthday = datetime(year, month, day)
             cur_day = datetime.now()
             y, m, d = birthday.year, cur_day.month, cur_day.day
             return cur_day.year - y - (birthday > datetime(y, m, d))
@@ -38,6 +54,20 @@ class User:
 
     def get_prf_link(self) -> str:
         return ''.join([self.BASE_USER_URL, str(self.id)])
+
+    def get_user_info(self) -> str:
+        text = (
+            f'''
+            {self.last_name} {self.first_name}
+            {self.get_prf_link()}
+            '''
+        )
+        return text
+
+    def get_user_photos(self, count=3, popular=True) -> list[Photo]:
+        self.list_photos.sort(key=lambda photo: photo.count_likes,
+                              reverse=popular)
+        return self.list_photos[:count]
 
 
 class ActionInterface:
@@ -234,7 +264,7 @@ class ActionInterface:
     def _come_back(self, message=''):
         pass
 
-    def _show_next_user(self, message=''):
+    def _show_next_user(self):
         pass
 
 
@@ -242,12 +272,14 @@ class Criteria:
     MIN_AGE = 1
     MAX_AGE = 120
     DEFAULT_SEX = [0, 1, 2]
+    STR_SEX = {0: 'неуказан', 1: 'женский', 2: 'мужской'}
 
     def __init__(self):
         self.age_from = self.MIN_AGE
         self.age_to = self.MAX_AGE
         self.sex = self.DEFAULT_SEX
-        self.cities_id: list[int] = [0]
+        self.cities_id: list[int] = [0, 21, 1]
+        self.city_title = ''
         self.fixed_criteria = False
 
     def check_user(self, user: User) -> bool:
@@ -266,15 +298,58 @@ class Criteria:
 
 
 class SearchEngine(Criteria):
+    STEP_SEARCH = 10
 
     def __init__(self, user_token: str = None, user_id: int | str = None):
         super().__init__()
-        self.user_api = UserVkApi(token=user_token, user_id=user_id)
+        self.api = UserVkApi(token=user_token, user_id=user_id)
         self.user_list = []
         self.offset = 0
 
-        # self.have_access = data.get('can_access_closed', False)
-        # self.is_closed = data.get('is_closed', True)
+    def get_data_users(self) -> bool:
+        if users_data := self.api.search_users(
+                self.STEP_SEARCH, self.api.search_params, self.api.fields,
+                self.offset):
+            self.offset += self.STEP_SEARCH
+            for data in users_data:
+                if not data.get('is_closed', 1):
+                    user = User(data)
+                    if self.check_user(user):
+                        user.list_photos = self.upload_photos(user.id)
+                        self.user_list.append(user)
+            return True
+        else:
+            return False
 
-    def add_users_to_list(self):
-        pass
+    def upload_photos(self, user_id: int) -> list[Photo]:
+        if user_photos := self.api.get_user_photos(user_id):
+            photos = []
+            for data in user_photos:
+                photo = Photo(data)
+                photos.append(photo)
+            return photos
+        else:
+            return []
+
+    def get_next_user(self) -> User | None:
+        if self.user_list:
+            return self.user_list.pop(0)
+        else:
+            self.get_data_users()
+            try:
+                return self.user_list.pop(0)
+            except IndexError:
+                print('Больше пользователей согласно заданных критериев '
+                      'найти не получается!!!')
+                return None
+
+    def get_descr_criteria(self) -> str:
+        str_sex = self.STR_SEX.get(min(self.sex), 'неважен')
+        text = (
+            f'''
+            - возраст: от {self.age_from} до {self.age_to} лет;
+            - пол: {str_sex};
+            - город: {self.city_title}.
+            '''
+        )
+        return text

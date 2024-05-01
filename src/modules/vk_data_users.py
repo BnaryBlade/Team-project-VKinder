@@ -3,9 +3,9 @@ import os
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
-token = os.getenv('my_token')
+token = os.getenv('TOKEN')
 session = vk_api.VkApi(token=token)
-user_id_VK = os.getenv('user_id_VK')
+user_id_VK = os.getenv('USER_ID')
 
 
 def data_user_VK(user_id):

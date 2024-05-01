@@ -31,7 +31,8 @@ class UserVkApi(VkApi):
         self.search_params = {'sex': self.sex,
                               'age_from': 30,
                               'age_to': 35,
-                              'has_photo': 1}
+                              'has_photo': 1,
+                              'is_closed': True}
         self.fields = 'city,sex,bdate'
 
     def _data_api_initialization(self) -> None:
@@ -87,9 +88,30 @@ class UserVkApi(VkApi):
         }
         return self.method(vdt.Meths.USERS_GET, params)
 
-    def search_users(self, count: int) -> dict:
+    def search_users_1(self, count: int) -> dict:
         params = {'count': count, **self.search_params, 'fields': self.fields}
-        return self.method(vdt.Meths.USER_SEARCH, params)
+        return self.method(vdt.Meths.USER_SEARCH, params).get('items', [])
+
+    def search_users(self, count: int, params: dict,
+                     fields='', offset=0) -> list[dict]:
+        params['count'] = count
+        params['fields'] = ','.join([params.get('fields', ''), fields])
+        params['offset'] = offset
+        try:
+            return self.method(vdt.Meths.USER_SEARCH, params).get('items', [])
+        except ApiError:
+            traceback.print_exc()
+            print('Не получилось загрузить список пользователей...')
+            return []
+
+    def get_user_photos(self, user_id: int) -> list[dict]:
+        params = {'owner_id': user_id, 'album_id': 'profile', 'extended': '1'}
+        try:
+            return self.method(vdt.Meths.PHOTOS_GET, params).get('items', [])
+        except ApiError:
+            traceback.print_exc()
+            print('Не получилось загрузить список фото пользователей...')
+            return []
 
 
 class BotVkApi(VkApi):
@@ -117,12 +139,17 @@ class BotVkApi(VkApi):
     def write_msg(self, user_id: int, message: str) -> bool:
         return self._send_msg(user_id, message)
 
-    def _send_msg(self, user_id: int, message: str, kb='', r_id=False) -> bool:
+    def send_attachment(self, user_id: int, attachment: str):
+        return self._send_msg(user_id, attachment)
+
+    def _send_msg(self, user_id: int, message='',
+                  kb='', r_id=False, attachment='') -> bool:
         random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
                   'message': message,
                   'random_id': random_id,
-                  'keyboard': kb}
+                  'keyboard': kb,
+                  'attachment': attachment}
         try:
             self.method(vdt.Meths.MESSAGES_SEND, values)
             return True

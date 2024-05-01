@@ -5,8 +5,8 @@ from typing import Any
 from vk_api.longpoll import VkLongPoll, VkEventType, Event
 
 from db import ModelDb
-from api import UserVkApi, BotVkApi
-from classes import ActionInterface
+from api import BotVkApi
+from classes import ActionInterface, SearchEngine, User
 
 lgn_db = os.environ['LOGIN_DB']
 pass_db = os.environ['PASSWORD_DB']
@@ -29,14 +29,14 @@ class Bot(ModelDb, ActionInterface):
                  user_id: int | str = None,
                  db_name='vk_bot_db', ) -> None:
         super().__init__(login=login_db, password=password_db, db_name=db_name)
-        self.user_api = UserVkApi(token=user_token, user_id=user_id)
-
+        # self.user_api = UserVkApi(token=user_token, user_id=user_id)
+        self.s_engin = SearchEngine(user_token, user_id)
         self.api = BotVkApi(group_token=group_token)
         self.bot_is_act = False
         self.bot_is_sleep = True
         self.curr_id: int | None = None
         self.another_action: Any = None
-        # self.offset
+        self.found_user: User | None = None
 
     def start(self) -> None:
         self.bot_is_act = True
@@ -72,7 +72,7 @@ class Bot(ModelDb, ActionInterface):
 
     def _start_bot_dialog(self, message='') -> None:
         self.curr_kb, self.curr_action = self._get_start_dialog_kb()
-        self.another_action = self._do_another_action
+        self.another_action = self.do_another_action
         message = 'А вот и я... :-)'
         if bot.api.show_kb(self.curr_id, message,
                            self.curr_kb.get_keyboard()):
@@ -188,6 +188,9 @@ class Bot(ModelDb, ActionInterface):
     def _go_browsing(self, message='Поищем...') -> None:
         self.curr_kb, self.curr_action = self._get_queue_kb()
         self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
+        self.found_user = self.s_engin.get_next_user()
+        self.show_user_info()
+        self.show_user_photos()
 
     def _add_to_blacklist(self, message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.curr_id, message)
@@ -199,10 +202,12 @@ class Bot(ModelDb, ActionInterface):
                             message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.curr_id, message)
 
-    def _show_next_user(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+    def _show_next_user(self) -> None:
+        self.found_user = self.s_engin.get_next_user()
+        self.show_user_info()
+        self.show_user_photos()
 
-    def _do_another_action(self, event: Event) -> None:
+    def do_another_action(self, event: Event) -> None:
         text = event.text
         self.api.write_msg(
             self.curr_id,
@@ -210,8 +215,20 @@ class Bot(ModelDb, ActionInterface):
                         'Я не совсем понимаю, чего вы от меня хотите...'])
         )
 
+    def show_user_info(self) -> None:
+        message = self.found_user.get_user_info()
+        self.api.write_msg(self.curr_id, message)
+
+    def show_user_photos(self) -> None:
+        attachments = []
+        for pht in self.found_user.get_user_photos():
+            attachment = f'photo{pht.owner_id}_{pht.photo_id}'
+            attachments.append(attachment)
+        self.api.send_attachment(self.curr_id, ','.join(attachments))
+
 
 if __name__ == '__main__':
     bot = Bot(my_group_token, lgn_db, pass_db, my_token, my_id)
-    # bot.start()
-    print(bot.user_api.search_users(5))
+    bot.start()
+    # print(bot.s_engin.api.search_users_1(5))
+    # bot.s_engin.get_data_users()
