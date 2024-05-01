@@ -196,4 +196,3 @@ class Bot(ModelDb, ActionInterface):
 if __name__ == '__main__':
     bot = Bot(my_group_token, lgn_db, pass_db, my_token, my_id)
     bot.start()
-    # print(bot.user_api.search_users(1))

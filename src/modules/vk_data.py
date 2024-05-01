@@ -102,11 +102,6 @@ class Meths(StrEnum):
     MESSAGES_EDIT = 'messages.edit'
 
 
-# class KeyWord(StrEnum):
-#     ENOUGH = 'хватит'
-#     FND_PEOPLE = 'найти Далёких странников'
-
-
 class ActionInterface:
 
     def __init__(self):
