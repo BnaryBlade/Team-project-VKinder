@@ -8,10 +8,9 @@ session = vk_api.VkApi(token=token)
 user_id_VK = os.getenv('user_id_VK')
 
 
-
 def data_user_VK(user_id):
     data = session.method("users.get", {"user_ids": user_id,
-                                        "fields": "id, first_name, last_name, city, sex, bdate",
+                                        "fields": "id, first_name, _name, city, sex, bdate",
                                         })
     return data[0]
 
@@ -23,7 +22,7 @@ def data_users(sex, id_city):
         'sex': sex,
         'city': id_city,
         'is_closed': 'False',
-        'count': '1000',
+        'count': '5',
         'fields': "city, sex, bdate",
         'has_photo': '1',
         'sort': '0',
@@ -38,7 +37,12 @@ def data_users(sex, id_city):
                 ('bdate' not in valeu):
             continue
         else:
-            users_list_new_2 = dict(id=valeu['id'], sex=valeu['sex'], city=valeu['city'], bdate=valeu['bdate'])
+            users_list_new_2 = dict(first_name=valeu['first_name'],
+                                    last_name=valeu['last_name'],
+                                    bdate=valeu['bdate'],
+                                    sex=valeu['sex'],
+                                    city=valeu['city'],
+                                    id=valeu['id'])
             users_list_new.append(users_list_new_2)
 
     # print(users_list_new)
@@ -74,12 +78,16 @@ id_city = data['city']['id']
 # default
 
 foto = data_users(sex, id_city)
+print('можно отсюда в бд затягивать = ', len(foto), 'длина списка факт')
+print(foto)  # можно отсюда в бд затягивать
 users_photos_new = []
 for index, valeu in enumerate(foto):
     id_foto = foto[index]['id']
     url = upload_photos(id_foto)
-    print(url)
+    # print(url)
     photos = dict(vk_id=foto[index]['id'], photo_link=url)
-    users_photos_new.append(photos)
-print('список словарей id: photo_link')
+    users_photos_new.append(photos)  # можно отсюда в бд затягивать
+print()
+print('список словарей id: photo_link  = ', len(users_photos_new), 'длина списка факт')
+
 print(users_photos_new)
