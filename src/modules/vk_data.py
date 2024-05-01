@@ -97,5 +97,4 @@ class Meths(StrEnum):
     USERS_GET = 'users.get'
     MESSAGES_SEND = 'messages.send'
     USER_SEARCH = 'users.search'
-    MESSAGES_EDIT = 'messages.edit'
     PHOTOS_GET = 'photos.get'

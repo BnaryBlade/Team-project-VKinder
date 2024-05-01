@@ -139,17 +139,12 @@ class BotVkApi(VkApi):
     def write_msg(self, user_id: int, message: str) -> bool:
         return self._send_msg(user_id, message)
 
-    def send_attachment(self, user_id: int, attachment: str):
-        return self._send_msg(user_id, attachment)
-
-    def _send_msg(self, user_id: int, message='',
-                  kb='', r_id=False, attachment='') -> bool:
+    def _send_msg(self, user_id: int, message='', kb='', r_id=False) -> bool:
         random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
                   'message': message,
                   'random_id': random_id,
-                  'keyboard': kb,
-                  'attachment': attachment}
+                  'keyboard': kb}
         try:
             self.method(vdt.Meths.MESSAGES_SEND, values)
             return True
@@ -158,14 +153,15 @@ class BotVkApi(VkApi):
             print('Не получилось отпарвить сообщение...')
             return False
 
-    def _edit_msg(self, user_id: int, message: str, kb='') -> bool:
+    def send_attachment(self, user_id: int, attachment='', r_id=True):
+        random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
-                  'message': message,
-                  'keyboard': kb}
+                  'random_id': random_id,
+                  'attachment': attachment}
         try:
-            self.method(vdt.Meths.MESSAGES_EDIT, values)
+            self.method(vdt.Meths.MESSAGES_SEND, values)
             return True
         except ApiError:
             traceback.print_exc()
-            print('Не получилось изменить сообщение сообщение...')
+            print('Не получилось отпарвить фото...')
             return False
