@@ -5,17 +5,9 @@ from typing import Any
 from vk_api.longpoll import VkLongPoll, VkEventType, Event
 
 from db import ModelDb
+from vk_data import ActionInterface, User
 from api import BotVkApi
-from classes import ActionInterface, SearchEngine, User
-
-lgn_db = os.environ['LOGIN_DB']
-pass_db = os.environ['PASSWORD_DB']
-grp_token = os.environ['GROUP_TOKEN']
-my_group_token = os.environ['MY_GROUP_TOKEN']
-
-app_id = int(os.environ['APP_ID'])
-my_token = os.environ['TOKEN']
-my_id = int(os.environ['USER_ID'])
+from classes import SearchEngine
 
 
 class Bot(ModelDb, ActionInterface):
@@ -228,7 +220,17 @@ class Bot(ModelDb, ActionInterface):
 
 
 if __name__ == '__main__':
+    lgn_db = os.environ['LOGIN_DB']
+    pass_db = os.environ['PASSWORD_DB']
+    grp_token = os.environ['GROUP_TOKEN']
+    my_group_token = os.environ['MY_GROUP_TOKEN']
+
+    app_id = int(os.environ['APP_ID'])
+    my_token = os.environ['TOKEN']
+    my_id = int(os.environ['USER_ID'])
+
     bot = Bot(my_group_token, lgn_db, pass_db, my_token, my_id)
     bot.start()
     # print(bot.s_engin.api.search_users_1(5))
     # bot.s_engin.get_data_users()
+    # print(bot.s_engin.api.get_users_info())

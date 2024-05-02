@@ -1,12 +1,12 @@
-import sys
 from random import randrange
 import traceback
 
-from selenium.common.exceptions import WebDriverException
+# from selenium.common.exceptions import WebDriverException
 from vk_api import VkApi
 from vk_api.exceptions import ApiError
 
-import vk_data as vdt
+from additional_data import perform_authorization
+from vk_data import User, Meths
 
 
 class UserVkApi(VkApi):
@@ -20,77 +20,56 @@ class UserVkApi(VkApi):
                  app_id: int = 6222115) -> None:
         super().__init__(login=login, password=password, token=token,
                          app_id=app_id, api_version=api_version)
-        self.user_id = user_id
-        self.first_name = ''
-        self.last_name = ''
-        self.sex = 0
-        self.birthdate = ''
-        self.city = {}
-        self.interests = ''
-        self._data_api_initialization()
-        self.search_params = {'sex': self.sex,
+        # self.user_id = user_id
+        self.client = User({'id': user_id})
+        self._uploading_client_data()
+        self.search_params = {'sex': self.client.sex,
                               'age_from': 30,
                               'age_to': 35,
-                              'has_photo': 1,
-                              'is_closed': True}
+                              'has_photo': 1}
         self.fields = 'city,sex,bdate'
 
-    def _data_api_initialization(self) -> None:
-        try:
-            user_data = self._check_token_and_id()[0]
-        except (WebDriverException, ApiError):
-            traceback.print_exc()
-            print('Не выполнена авторизация пользователя в UserVkApi...')
-            sys.exit(1)
-        else:
-            self.first_name = user_data['first_name']
-            self.last_name = user_data['last_name']
-            if birthdate := user_data['bdate']:
-                self.birthdate = birthdate
-            if city := user_data['city']:
-                self.city = city
-            if interests := user_data['interests']:
-                self.interests = interests
-            if sex := int(user_data['sex']):
-                self.sex = sex
+    def _uploading_client_data(self) -> None:
+        """Загружеет данные пользователя-клиента.
 
-    def _check_token_and_id(self) -> dict:
-        """Проверяет токен и id пользователя.
-
-        Проверяет наличие и актуальност токена и id пользователя спомощью
-        запроса на получение данных пользователя, если запрос выдаёт
-        исключение, метод пробует произвести авторизацию пользователя.
+        Проверяет наличие и актуальност токена и id пользователя с помощью
+        запроса на получение его данных, при неуспешной загрузке данных,
+        выполняет авторизацию пользователя с последующей повторной попыткой
+        загрузки данных клиента.
         :exception WebDriverException
         :exception ApiError
         :return:
         """
-        if self.token is not None and self.user_id is not None:
-            try:
-                return self.get_user_info()
-            except ApiError as e:
-                print(e)
-        browser = vdt.get_browser(*vdt.get_paths())
-        redirect_uri = vdt.get_vk_redirect_uri(self.app_id, browser)
-        token, user_id = vdt.get_token_and_id(redirect_uri)
-        self.token = {'access_token': token}
-        self.user_id = user_id
-        print(f'Ваш новый токен: {token}')
-        return self.get_user_info()
+        if client_data := self.get_users_info([self.client.id]):
+            self.client.update_user_data(client_data[0])
+        else:
+            token, user_id = perform_authorization(self.app_id)
+            print(f'Ваш новый токен: {token}')
+            self.token = {'access_token': token}
+            self.client.id = user_id
+            if client_data := self.get_users_info([self.client.id]):
+                self.client.update_user_data(client_data[0])
 
-    def get_user_info(self) -> dict:
+    def get_users_info(self, user_ids: list[int] = None) -> list[dict]:
         """Метод возвращает данные пользователя по его id.
         :exception ApiError:
         :return:
         """
+        if user_ids is not None:
+            user_ids = ','.join(map(str, user_ids))
         params = {
-            'user_ids': self.user_id,
+            'user_ids': user_ids,
             'fields': 'city,bdate,sex,interests'
         }
-        return self.method(vdt.Meths.USERS_GET, params)
-
-    def search_users_1(self, count: int) -> dict:
-        params = {'count': count, **self.search_params, 'fields': self.fields}
-        return self.method(vdt.Meths.USER_SEARCH, params).get('items', [])
+        try:
+            if response := self.method(Meths.USERS_GET, params):
+                return response
+            else:
+                return []
+        except ApiError:
+            traceback.print_exc()
+            print('Не получилось загрузить данные пользователей...')
+            return []
 
     def search_users(self, count: int, params: dict,
                      fields='', offset=0) -> list[dict]:
@@ -98,7 +77,7 @@ class UserVkApi(VkApi):
         params['fields'] = ','.join([params.get('fields', ''), fields])
         params['offset'] = offset
         try:
-            return self.method(vdt.Meths.USER_SEARCH, params).get('items', [])
+            return self.method(Meths.USER_SEARCH, params).get('items', [])
         except ApiError:
             traceback.print_exc()
             print('Не получилось загрузить список пользователей...')
@@ -107,7 +86,7 @@ class UserVkApi(VkApi):
     def get_user_photos(self, user_id: int) -> list[dict]:
         params = {'owner_id': user_id, 'album_id': 'profile', 'extended': '1'}
         try:
-            return self.method(vdt.Meths.PHOTOS_GET, params).get('items', [])
+            return self.method(Meths.PHOTOS_GET, params).get('items', [])
         except ApiError:
             traceback.print_exc()
             print('Не получилось загрузить список фото пользователей...')
@@ -146,7 +125,7 @@ class BotVkApi(VkApi):
                   'random_id': random_id,
                   'keyboard': kb}
         try:
-            self.method(vdt.Meths.MESSAGES_SEND, values)
+            self.method(Meths.MESSAGES_SEND, values)
             return True
         except ApiError:
             traceback.print_exc()
@@ -159,7 +138,7 @@ class BotVkApi(VkApi):
                   'random_id': random_id,
                   'attachment': attachment}
         try:
-            self.method(vdt.Meths.MESSAGES_SEND, values)
+            self.method(Meths.MESSAGES_SEND, values)
             return True
         except ApiError:
             traceback.print_exc()
