@@ -43,7 +43,7 @@ class User:
         self.last_name: str = data.get('last_name', '')
         self.bdate: str = data.get('bdate', '')
         self.city_id: int = data.get('city', {}).get('id', 0)
-        self.city_title: str = data.get('city', {}).get('id', '')
+        self.city_title: str = data.get('city', {}).get('title', '')
         self.sex: int = data.get('sex', 0)
         self.list_photos: list[Photo] = []
 
@@ -166,7 +166,7 @@ class ActionInterface:
         keyboard.add_line()
         keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.POSITIVE)
 
-        key_word = {self.KeyWord.COME_BACK: self._come_back,
+        key_word = {self.KeyWord.COME_BACK: self._go_come_back,
                     self.KeyWord.CHOOSE_CITY: self._choose_city,
                     self.KeyWord.CHOOSE_AGE: self._choose_age,
                     self.KeyWord.CHOOSE_SEX: self._choose_sex,
@@ -191,7 +191,7 @@ class ActionInterface:
         key_word = {self.KeyWord.IS_NOT_INTERESTING: self._add_to_blacklist,
                     self.KeyWord.IS_INTERESTING: self._add_to_favorites,
                     self.KeyWord.NEXT: self._show_next_user,
-                    self.KeyWord.COME_BACK: self._come_back,
+                    self.KeyWord.COME_BACK: self._go_come_back,
                     self.KeyWord.EXIT: self._exit_from_vkbot,
                     self.KeyWord.ENOUGH: self._stop_bot_dialog}
         return keyboard, key_word
@@ -207,7 +207,7 @@ class ActionInterface:
 
         key_word = {self.KeyWord.NEXT: self._show_next_user,
                     self.KeyWord.PREVIOUS: self._show_previous_user,
-                    self.KeyWord.COME_BACK: self._come_back,
+                    self.KeyWord.COME_BACK: self._go_come_back,
                     self.KeyWord.EXIT: self._exit_from_vkbot,
                     self.KeyWord.ENOUGH: self._stop_bot_dialog}
         return keyboard, key_word
@@ -276,7 +276,7 @@ class ActionInterface:
         pass
 
     # Реализация кнопки "назад" и "следующий" общей для нескольких клавиатур
-    def _come_back(self, message=''):
+    def _go_come_back(self, message=''):
         pass
 
     def _show_next_user(self):

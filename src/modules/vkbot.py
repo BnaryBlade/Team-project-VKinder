@@ -21,14 +21,14 @@ class Bot(ModelDb, ActionInterface):
                  user_id: int | str = None,
                  db_name='vk_bot_db', ) -> None:
         super().__init__(login=login_db, password=password_db, db_name=db_name)
-        # self.user_api = UserVkApi(token=user_token, user_id=user_id)
         self.s_engin = SearchEngine(user_token, user_id)
         self.api = BotVkApi(group_token=group_token)
         self.bot_is_act = False
         self.bot_is_sleep = True
-        self.curr_id: int | None = None
+        self.client: User | None = None
+        # self.curr_id: int | None = None
         self.another_action: Any = None
-        self.found_user: User | None = None
+        # self.found_user: User | None = None
 
     def start(self) -> None:
         self.bot_is_act = True
@@ -41,13 +41,17 @@ class Bot(ModelDb, ActionInterface):
     def event_handling(self, event: Event) -> None:
         if event.type == VkEventType.MESSAGE_NEW:
             if event.to_me:
-                self.curr_id = event.user_id
+                if self.client is None:
+                    user_data = self.s_engin.api.get_users_info(
+                        [event.user_id]
+                    )
+                    self.client = User(user_data[0])
                 if not self.bot_is_sleep:
                     self.select_action(event)
                 elif event.text == 'bot':
                     self.bot_is_sleep = False
                     self._start_bot_dialog()
-        self.curr_id = None
+        # self.curr_id = None
 
     def select_action(self, event: Event) -> None:
         if (action := self.curr_action.get(event.text)) is not None:
@@ -57,7 +61,7 @@ class Bot(ModelDb, ActionInterface):
 
     def _exit_from_vkbot(self, message='') -> None:
         message = 'Убил...'
-        if self.api.hide_kb(self.curr_id, message,
+        if self.api.hide_kb(self.client.id, message,
                             self.curr_kb.get_empty_keyboard()):
             self.kb_is_act = False
         self.bot_is_act = False
@@ -66,14 +70,18 @@ class Bot(ModelDb, ActionInterface):
         self.curr_kb, self.curr_action = self._get_start_dialog_kb()
         self.another_action = self.do_another_action
         message = 'А вот и я... :-)'
-        if bot.api.show_kb(self.curr_id, message,
+        if bot.api.show_kb(self.client.id, message,
                            self.curr_kb.get_keyboard()):
             self.kb_is_act = True
+            self.s_engin.set_criteria_from_user(self.client)
 
     def _stop_bot_dialog(self, message='') -> None:
+        if self.s_engin.is_criteria_changed:
+            self.s_engin.stop_found_users()
+            self.s_engin.set_criteria_from_user(self.client)
         if self.bot_is_act:
             message = 'Ладно, и мне пора... :-)'
-            if self.api.hide_kb(self.curr_id, message,
+            if self.api.hide_kb(self.client.id, message,
                                 self.curr_kb.get_empty_keyboard()):
                 self.kb_is_act = False
         self.bot_is_sleep = True
@@ -81,47 +89,50 @@ class Bot(ModelDb, ActionInterface):
     def _go_choose_view_options(self,
                                 message='Где будем просматривать?') -> None:
         self.curr_kb, self.curr_action = self._get_choosing_actions_kb()
-        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
 
     def _go_blacklist_view(self, message='Посмотрим...') -> None:
         self.curr_kb, self.curr_action = self._get_viewing_history_kb()
-        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
 
     def _go_favorites_view(self, message='Посмотрим...') -> None:
         self.curr_kb, self.curr_action = self._get_viewing_history_kb()
-        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
 
-    def _go_search_people(self,
-                          message='Можете выбрать критерии поиска...') -> None:
+    def _go_search_people(self, message='') -> None:
         self.curr_kb, self.curr_action = self._get_criteria_selection_kb()
-        if bot.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard()):
-            self.kb_is_act = True
-            self.api.write_msg(
-                self.curr_id,
-                'По умолчанию буду ориентироваться на ваши данные...:-)'
-            )
+        message = self.s_engin.get_descr_criteria()
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
+        self.api.write_msg(self.client.id,
+                           'Но можете изменить эти данные...')
 
     def _clear_history(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
     def _clear_blacklist(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
-    def _come_back(self, message='Передумали... :-(') -> None:
+    def _go_come_back(self, message='Передумали... :-(') -> None:
+        if self.s_engin.is_criteria_changed:
+            self.s_engin.stop_found_users()
+            self.s_engin.set_criteria_from_user(self.client)
         self.curr_kb, self.curr_action = self._get_choosing_actions_kb()
-        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
 
     def _choose_city(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
+
+    def _checking_city(self, event: Event):
+        pass
 
     def _choose_age(self,
                     message=('укажите от какого и до какого возраста вас'
                              ' интересуют люди...')) -> None:
-        if self.api.hide_kb(self.curr_id, message,
+        if self.api.hide_kb(self.client.id, message,
                             self.curr_kb.get_empty_keyboard()):
             self.curr_action = {self.KeyWord.ENOUGH: self._stop_bot_dialog,
                                 self.KeyWord.EXIT: self._exit_from_vkbot,
-                                self.KeyWord.COME_BACK: self._come_back}
+                                self.KeyWord.COME_BACK: self._go_come_back}
             self.another_action = self._checking_age_input
 
     def _checking_age_input(self, event: Event) -> None:
@@ -130,93 +141,89 @@ class Bot(ModelDb, ActionInterface):
                 all_ages = list(
                     filter(lambda age: 0 < age < 120, map(int, all_ages))
                 )
-                age_from, age_to = min(all_ages), max(all_ages)
+                self.s_engin.age_from = min(all_ages)
+                self.s_engin.age_to = max(all_ages)
+                self.s_engin.is_criteria_changed = True
             except ValueError:
                 self.api.write_msg(
-                    self.curr_id,
+                    self.client.id,
                     'Что-то я не понял какой возраст мне искать...')
             else:
-                message = (
-                    f'''
-                    Выбранные критерии поиска людей:
-                        - возраст от {age_from} до {age_to};
-                        - пол - женский;
-                        - город - ваш;
-                    Что-то изменим, или перейдём к просмотру? :-)
-                    '''
-                )
+                message = self.s_engin.get_descr_criteria()
                 self._go_search_people(message)
         else:
-            self.api.write_msg(self.curr_id,
+            self.api.write_msg(self.client.id,
                                'Вы не указали ни одного возраста...')
             self.api.write_msg(
-                self.curr_id,
+                self.client.id,
                 ('Если передумали - наберите "нзад", чтобы вернуться'
                  ' или "хватит, чтобы прервать диалог..."'))
 
     def _choose_sex(self, message='Укажите, кто вас интересует:') -> None:
-        if self.api.hide_kb(self.curr_id, message,
+        if self.api.hide_kb(self.client.id, message,
                             self.curr_kb.get_empty_keyboard()):
             self.curr_action = {self.KeyWord.ENOUGH: self._stop_bot_dialog,
                                 self.KeyWord.EXIT: self._exit_from_vkbot,
-                                self.KeyWord.COME_BACK: self._come_back}
+                                self.KeyWord.COME_BACK: self._go_come_back}
             self.another_action = self._checking_sex_input
-            self.api.write_msg(self.curr_id, '- не имеет значения: "0";')
-            self.api.write_msg(self.curr_id, '- люди женского пола: "1";')
-            self.api.write_msg(self.curr_id, '- люди мужского пола: "2".')
+            self.api.write_msg(self.client.id, '- не имеет значения: "0";')
+            self.api.write_msg(self.client.id, '- люди женского пола: "1";')
+            self.api.write_msg(self.client.id, '- люди мужского пола: "2".')
 
     def _checking_sex_input(self, event: Event) -> None:
-        self.api.write_msg(self.curr_id, ' - '.join([event.text, 'мой ответ']))
+        self.api.write_msg(self.client.id,
+                           ' - '.join([event.text, 'мой ответ']))
+        self.s_engin.is_criteria_changed = True
 
     def _choose_interests(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
     def _choose_reserve_1(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
     def _choose_reserve_2(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
     def _go_browsing(self, message='Поищем...') -> None:
         self.curr_kb, self.curr_action = self._get_queue_kb()
-        self.api.show_kb(self.curr_id, message, self.curr_kb.get_keyboard())
-        self.found_user = self.s_engin.get_next_user()
-        self.show_user_info()
-        self.show_user_photos()
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
+        user = self.s_engin.start_found_users()
+        self.show_user_info(user)
+        self.show_user_photos(user)
 
     def _add_to_blacklist(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
     def _add_to_favorites(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
     def _show_previous_user(self,
                             message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.curr_id, message)
+        self.api.write_msg(self.client.id, message)
 
     def _show_next_user(self) -> None:
-        self.found_user = self.s_engin.get_next_user()
-        self.show_user_info()
-        self.show_user_photos()
+        user = self.s_engin.get_next_user()
+        self.show_user_info(user)
+        self.show_user_photos(user)
 
     def do_another_action(self, event: Event) -> None:
         text = event.text
         self.api.write_msg(
-            self.curr_id,
+            self.client.id,
             ' - '.join([text,
                         'Я не совсем понимаю, чего вы от меня хотите...'])
         )
 
-    def show_user_info(self) -> None:
-        message = self.found_user.get_user_info()
-        self.api.write_msg(self.curr_id, message)
+    def show_user_info(self, user: User) -> None:
+        message = user.get_user_info()
+        self.api.write_msg(self.client.id, message)
 
-    def show_user_photos(self) -> None:
+    def show_user_photos(self, user: User) -> None:
         attachments = []
-        for pht in self.found_user.get_user_photos():
+        for pht in user.get_user_photos():
             attachment = f'photo{pht.owner_id}_{pht.photo_id}'
             attachments.append(attachment)
-        self.api.send_attachment(self.curr_id, ','.join(attachments))
+        self.api.send_attachment(self.client.id, ','.join(attachments))
 
 
 if __name__ == '__main__':

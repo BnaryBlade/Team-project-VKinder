@@ -5,16 +5,15 @@ from vk_data import Photo, User
 class Criteria:
     MIN_AGE = 1
     MAX_AGE = 120
-    DEFAULT_SEX = [0, 1, 2]
-    STR_SEX = {0: 'неуказан', 1: 'женский', 2: 'мужской'}
+    STR_SEX = {0: 'не важен', 1: 'женский', 2: 'мужской'}
 
     def __init__(self):
         self.age_from = self.MIN_AGE
         self.age_to = self.MAX_AGE
-        self.sex = self.DEFAULT_SEX
+        self.sex = 0
         self.cities_id: list[int] = [0, 21, 1]
         self.city_title = ''
-        self.fixed_criteria = False
+        self.is_criteria_changed = False
 
     def check_user(self, user: User) -> bool:
         return all([self.check_sex(user.sex),
@@ -30,6 +29,25 @@ class Criteria:
     def check_sex(self, sex: int) -> bool:
         return sex in self.sex
 
+    def set_criteria_from_user(self, user: User) -> None:
+        self.age_from = user.get_age()
+        self.age_to = user.get_age()
+        self.sex = user.sex if user.sex else self.LIST_SEX
+        self.cities_id = user.city_id
+        self.city_title = user.city_title
+
+    def get_descr_criteria(self) -> str:
+        str_sex = self.STR_SEX.get(self.sex, 'неважен')
+        text = (
+            f'''
+            Критерии поиска:
+            - возраст: от {self.age_from} до {self.age_to} лет;
+            - пол: {str_sex};
+            - город: {self.city_title}.
+            '''
+        )
+        return text
+
 
 class SearchEngine(Criteria):
     STEP_SEARCH = 10
@@ -37,6 +55,7 @@ class SearchEngine(Criteria):
     def __init__(self, user_token: str = None, user_id: int | str = None):
         super().__init__()
         self.api = UserVkApi(token=user_token, user_id=user_id)
+        self.is_search_going_on = False
         self.user_list = []
         self.offset = 0
 
@@ -65,6 +84,15 @@ class SearchEngine(Criteria):
         else:
             return []
 
+    def start_found_users(self) -> User | None:
+        self.is_search_going_on = True
+        return self.get_next_user()
+
+    def stop_found_users(self):
+        self.is_search_going_on = False
+        self.offset = 0
+        self.user_list.clear()
+
     def get_next_user(self) -> User | None:
         if self.user_list:
             return self.user_list.pop(0)
@@ -73,17 +101,5 @@ class SearchEngine(Criteria):
             try:
                 return self.user_list.pop(0)
             except IndexError:
-                print('Больше пользователей согласно заданных критериев '
-                      'найти не получается!!!')
+                print('Всё!!! Смотреть больше некого...')
                 return None
-
-    def get_descr_criteria(self) -> str:
-        str_sex = self.STR_SEX.get(min(self.sex), 'неважен')
-        text = (
-            f'''
-            - возраст: от {self.age_from} до {self.age_to} лет;
-            - пол: {str_sex};
-            - город: {self.city_title}.
-            '''
-        )
-        return text
