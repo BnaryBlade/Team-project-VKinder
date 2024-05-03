@@ -9,6 +9,7 @@ class Meths(StrEnum):
     MESSAGES_SEND = 'messages.send'
     USER_SEARCH = 'users.search'
     PHOTOS_GET = 'photos.get'
+    GET_CITY = 'database.getCities'
 
 
 class Photo:
@@ -34,7 +35,6 @@ class User:
     :param data: является словарeм, описывающим поля пользователя
     """
 
-    DT_FORMAT = '%d.%m.%Y'
     BASE_USER_URL = 'https://vk.com/id'
 
     def __init__(self, data: dict):
@@ -101,16 +101,18 @@ class ActionInterface:
         SHOW_FAVORITES = 'показать избранных'
         SHOW_BLACKLIST = 'показать неинтересных'
         CLEAR_BLACKLIST = 'очистить черный список'
-        CLEAR_HISTORY = 'очистить историю просмотра'
+        CLEAR_HISTORY = 'очистить список избранных'
         CHOOSE_AGE = 'выбрать возраст'
         CHOOSE_CITY = 'выбрать город'
         CHOOSE_SEX = 'выбрать пол'
         CHOOSE_INTERESTS = 'выбрать интересы'
         LETS_SHOW = 'показывай'
+        NEXT_USER = 'покажи ещё одного...'
         IS_INTERESTING = 'интересно'
         IS_NOT_INTERESTING = 'не интересно'
-        NEXT = 'следующий'
-        PREVIOUS = 'предыдущий'
+        PREVIOUS_PERSON = 'предыдущий'
+        DELETE_FROM_LIST = 'удалить из списка'
+        NEXT_PERSON = 'следующий'
 
     def _get_start_dialog_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
@@ -183,14 +185,14 @@ class ActionInterface:
         keyboard.add_button(self.KeyWord.IS_INTERESTING,
                             VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.NEXT, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(self.KeyWord.NEXT_USER, VkKeyboardColor.SECONDARY)
         keyboard.add_line()
         keyboard.add_button(self.KeyWord.COME_BACK, VkKeyboardColor.PRIMARY)
         keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.PRIMARY)
 
         key_word = {self.KeyWord.IS_NOT_INTERESTING: self._add_to_blacklist,
                     self.KeyWord.IS_INTERESTING: self._add_to_favorites,
-                    self.KeyWord.NEXT: self._show_next_user,
+                    self.KeyWord.NEXT_USER: self._show_next_user,
                     self.KeyWord.COME_BACK: self._go_come_back,
                     self.KeyWord.EXIT: self._exit_from_vkbot,
                     self.KeyWord.ENOUGH: self._stop_bot_dialog}
@@ -198,15 +200,20 @@ class ActionInterface:
 
     def _get_viewing_history_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(self.KeyWord.PREVIOUS, VkKeyboardColor.SECONDARY)
-        keyboard.add_button(self.KeyWord.NEXT, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(self.KeyWord.PREVIOUS_PERSON,
+                            VkKeyboardColor.SECONDARY)
+        keyboard.add_button(self.KeyWord.DELETE_FROM_LIST,
+                            VkKeyboardColor.NEGATIVE)
+        keyboard.add_button(self.KeyWord.NEXT_PERSON,
+                            VkKeyboardColor.SECONDARY)
         keyboard.add_line()
         keyboard.add_button(self.KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
         keyboard.add_line()
         keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.POSITIVE)
 
-        key_word = {self.KeyWord.NEXT: self._show_next_user,
-                    self.KeyWord.PREVIOUS: self._show_previous_user,
+        key_word = {self.KeyWord.NEXT_PERSON: self._show_next_person(),
+                    self.KeyWord.DELETE_FROM_LIST: self._delete_user,
+                    self.KeyWord.PREVIOUS_PERSON: self._show_previous_person(),
                     self.KeyWord.COME_BACK: self._go_come_back,
                     self.KeyWord.EXIT: self._exit_from_vkbot,
                     self.KeyWord.ENOUGH: self._stop_bot_dialog}
@@ -264,6 +271,9 @@ class ActionInterface:
     def _go_browsing(self, message=''):
         pass
 
+    def _show_next_user(self):
+        pass
+
     # Реализация клавивтуры просмотра новых пользователей
     def _add_to_blacklist(self, message=''):
         pass
@@ -275,9 +285,15 @@ class ActionInterface:
     def _show_previous_user(self, message=''):
         pass
 
-    # Реализация кнопки "назад" и "следующий" общей для нескольких клавиатур
-    def _go_come_back(self, message=''):
+    def _show_previous_person(self, message=''):
         pass
 
-    def _show_next_user(self):
+    def _delete_user(self, message=''):
+        pass
+
+    def _show_next_person(self, message=''):
+        pass
+
+    # Реализация кнопки "назад" и "следующий" общей для нескольких клавиатур
+    def _go_come_back(self, message=''):
         pass

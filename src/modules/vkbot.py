@@ -69,6 +69,7 @@ class Bot(ModelDb, ActionInterface):
     def _start_bot_dialog(self, message='') -> None:
         self.curr_kb, self.curr_action = self._get_start_dialog_kb()
         self.another_action = self.do_another_action
+        self.s_engin.set_criteria_from_user(self.client)
         message = 'А вот и я... :-)'
         if bot.api.show_kb(self.client.id, message,
                            self.curr_kb.get_keyboard()):
@@ -76,9 +77,8 @@ class Bot(ModelDb, ActionInterface):
             self.s_engin.set_criteria_from_user(self.client)
 
     def _stop_bot_dialog(self, message='') -> None:
-        if self.s_engin.is_criteria_changed:
+        if self.s_engin.is_search_going_on:
             self.s_engin.stop_found_users()
-            self.s_engin.set_criteria_from_user(self.client)
         if self.bot_is_act:
             message = 'Ладно, и мне пора... :-)'
             if self.api.hide_kb(self.client.id, message,
@@ -113,17 +113,39 @@ class Bot(ModelDb, ActionInterface):
         self.api.write_msg(self.client.id, message)
 
     def _go_come_back(self, message='Передумали... :-(') -> None:
-        if self.s_engin.is_criteria_changed:
+        if self.s_engin.is_search_going_on:
             self.s_engin.stop_found_users()
+            self.s_engin.set_criteria_from_user(self.client)
+        elif self.s_engin.is_criteria_changed:
             self.s_engin.set_criteria_from_user(self.client)
         self.curr_kb, self.curr_action = self._get_choosing_actions_kb()
         self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
 
-    def _choose_city(self, message='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.client.id, message)
+    def _choose_city(self,
+                     message='Напишите название города, в котором будем '
+                             'искать людей...') -> None:
+        if self.api.hide_kb(self.client.id, message,
+                            self.curr_kb.get_empty_keyboard()):
+            self.curr_action = {self.KeyWord.ENOUGH: self._stop_bot_dialog,
+                                self.KeyWord.EXIT: self._exit_from_vkbot,
+                                self.KeyWord.COME_BACK: self._go_come_back}
+            self.another_action = self._checking_city
 
     def _checking_city(self, event: Event):
-        pass
+        if city := self.s_engin.search_city(event.text, 1):
+            self.s_engin.city_id = city[0].get('id', self.client.city_id)
+            self.s_engin.city_title = city[0].get(
+                'title', self.client.city_title
+            )
+            self.s_engin.is_criteria_changed = True
+            message = self.s_engin.get_descr_criteria()
+            self._go_search_people(message)
+        else:
+            self.api.write_msg(self.client.id,
+                               'Такой город город я не знаю: введите'
+                               ' другое название!\nИли, если передумали - '
+                               'то наберите "назад", чтобы вернуться или '
+                               '"хватит", чтобы закончить нашу беседу...')
 
     def _choose_age(self,
                     message=('укажите от какого и до какого возраста вас'
@@ -156,8 +178,8 @@ class Bot(ModelDb, ActionInterface):
                                'Вы не указали ни одного возраста...')
             self.api.write_msg(
                 self.client.id,
-                ('Если передумали - наберите "нзад", чтобы вернуться'
-                 ' или "хватит, чтобы прервать диалог..."'))
+                'Если передумали - наберите "назад", чтобы вернуться'
+                ' или "хватит", чтобы прервать диалог...')
 
     def _choose_sex(self, message='Укажите, кто вас интересует:') -> None:
         if self.api.hide_kb(self.client.id, message,
@@ -171,10 +193,26 @@ class Bot(ModelDb, ActionInterface):
             self.api.write_msg(self.client.id, '- люди мужского пола: "2".')
 
     def _checking_sex_input(self, event: Event) -> None:
-        self.s_engin.sex = int(event.text)
-        self.s_engin.is_criteria_changed = True
-        message = self.s_engin.get_descr_criteria()
-        self._go_search_people(message)
+        try:
+            sex = int(event.text)
+        except ValueError:
+            self.api.write_msg(self.client.id,
+                               'Введите пожалуйста только одну цифру: "0" или'
+                               ' "1" или "2"!\nЕсли передумали - наберите '
+                               '"назад", чтобы вернуться или "хватит", чтобы'
+                               ' прервать диалог...')
+        else:
+            if sex not in [0, 1, 2]:
+                self.api.write_msg(self.client.id,
+                                   'цифра введена неправильная...'
+                                   ' попробуйте ещё раз...\nЕсли передумали - '
+                                   'наберите "назад", чтобы вернуться или'
+                                   ' "хватит", чтобы прервать диалог...')
+            else:
+                self.s_engin.sex = sex
+                self.s_engin.is_criteria_changed = True
+                message = self.s_engin.get_descr_criteria()
+                self._go_search_people(message)
 
     def _choose_interests(self, message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.client.id, message)
@@ -196,6 +234,15 @@ class Bot(ModelDb, ActionInterface):
             self.api.write_msg(self.client.id, 'Нет таких пользователей')
             self._go_come_back('Может изменить критерии')
 
+    def _show_next_user(self) -> None:
+        user = self.s_engin.get_next_user()
+        if user is not None:
+            self.show_user_info(user)
+            self.show_user_photos(user)
+        else:
+            self.api.write_msg(self.client.id, 'Нет таких пользователей')
+            self._go_come_back('Может изменить критерии')
+
     def _add_to_blacklist(self, message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.client.id, message)
 
@@ -206,14 +253,16 @@ class Bot(ModelDb, ActionInterface):
                             message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.client.id, message)
 
-    def _show_next_user(self) -> None:
-        user = self.s_engin.get_next_user()
-        if user is not None:
-            self.show_user_info(user)
-            self.show_user_photos(user)
-        else:
-            self.api.write_msg(self.client.id, 'Нет таких пользователей')
-            self._go_come_back('Может изменить критерии')
+    def _show_previous_person(self,
+                              message='Пока ещё не реализовали...') -> None:
+        self.api.write_msg(self.client.id, message)
+
+    def _delete_user(self, message='Пока ещё не реализовали...') -> None:
+        self.api.write_msg(self.client.id, message)
+
+    def _show_next_person(self,
+                          message='Пока ещё не реализовали...') -> None:
+        self.api.write_msg(self.client.id, message)
 
     def do_another_action(self, event: Event) -> None:
         text = event.text
@@ -226,8 +275,6 @@ class Bot(ModelDb, ActionInterface):
     def show_user_info(self, user: User) -> None:
         message = user.get_user_info()
         self.api.write_msg(self.client.id, message)
-
-
 
     def show_user_photos(self, user: User) -> None:
         attachments = []

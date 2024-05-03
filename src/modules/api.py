@@ -21,13 +21,8 @@ class UserVkApi(VkApi):
         super().__init__(login=login, password=password, token=token,
                          app_id=app_id, api_version=api_version)
         # self.user_id = user_id
-        self.client = User({'id': user_id})
+        self.admin = User({'id': user_id})
         self._uploading_client_data()
-        # self.search_params = {'sex': self.client.sex,
-        #                       'age_from': 30,
-        #                       'age_to': 35,
-        #                       'has_photo': 1}
-        # self.fields = 'city,sex,bdate'
 
     def _uploading_client_data(self) -> None:
         """Загружеет данные пользователя-клиента.
@@ -40,15 +35,15 @@ class UserVkApi(VkApi):
         :exception ApiError
         :return:
         """
-        if client_data := self.get_users_info([self.client.id]):
-            self.client.update_user_data(client_data[0])
+        if client_data := self.get_users_info([self.admin.id]):
+            self.admin.update_user_data(client_data[0])
         else:
             token, user_id = perform_authorization(self.app_id)
             print(f'Ваш новый токен: {token}')
             self.token = {'access_token': token}
-            self.client.id = user_id
-            if client_data := self.get_users_info([self.client.id]):
-                self.client.update_user_data(client_data[0])
+            self.admin.id = user_id
+            if client_data := self.get_users_info([self.admin.id]):
+                self.admin.update_user_data(client_data[0])
 
     def get_users_info(self, user_ids: list[int] = None) -> list[dict]:
         """Метод возвращает данные пользователя по его id.
@@ -86,6 +81,15 @@ class UserVkApi(VkApi):
         except ApiError:
             traceback.print_exc()
             print('Не получилось загрузить список фото пользователей...')
+            return []
+
+    def get_city(self, city_name: str, count=1) -> list[dict]:
+        params = {'q': city_name, 'need_all': 0, 'count': count}
+        try:
+            return self.method(Meths.GET_CITY, params).get('items', [])
+        except ApiError:
+            traceback.print_exc()
+            print('Не получилось загрузить города...')
             return []
 
 

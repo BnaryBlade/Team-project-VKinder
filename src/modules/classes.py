@@ -71,7 +71,7 @@ class SearchEngine(Criteria):
 
     def get_data_users(self) -> bool:
         params = self.get_search_params()
-        if users_data := self.api.search_users(self.STEP_SEARCH, params):
+        if users_data := self.api.search_users(params):
             self.offset += self.STEP_SEARCH
             for data in users_data:
                 if not data.get('is_closed', 1):
@@ -112,3 +112,6 @@ class SearchEngine(Criteria):
             except IndexError:
                 print('Всё!!! Смотреть больше некого...')
                 return None
+
+    def search_city(self, city_name: str, count=1) -> list[dict]:
+        return self.api.get_city(city_name, count)
