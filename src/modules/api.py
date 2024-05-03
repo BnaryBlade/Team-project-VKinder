@@ -23,11 +23,11 @@ class UserVkApi(VkApi):
         # self.user_id = user_id
         self.client = User({'id': user_id})
         self._uploading_client_data()
-        self.search_params = {'sex': self.client.sex,
-                              'age_from': 30,
-                              'age_to': 35,
-                              'has_photo': 1}
-        self.fields = 'city,sex,bdate'
+        # self.search_params = {'sex': self.client.sex,
+        #                       'age_from': 30,
+        #                       'age_to': 35,
+        #                       'has_photo': 1}
+        # self.fields = 'city,sex,bdate'
 
     def _uploading_client_data(self) -> None:
         """Загружеет данные пользователя-клиента.
@@ -71,11 +71,7 @@ class UserVkApi(VkApi):
             print('Не получилось загрузить данные пользователей...')
             return []
 
-    def search_users(self, count: int, params: dict,
-                     fields='', offset=0) -> list[dict]:
-        params['count'] = count
-        params['fields'] = ','.join([params.get('fields', ''), fields])
-        params['offset'] = offset
+    def search_users(self, params: dict) -> list[dict]:
         try:
             return self.method(Meths.USER_SEARCH, params).get('items', [])
         except ApiError:

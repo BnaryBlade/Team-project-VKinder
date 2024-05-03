@@ -171,9 +171,10 @@ class Bot(ModelDb, ActionInterface):
             self.api.write_msg(self.client.id, '- люди мужского пола: "2".')
 
     def _checking_sex_input(self, event: Event) -> None:
-        self.api.write_msg(self.client.id,
-                           ' - '.join([event.text, 'мой ответ']))
+        self.s_engin.sex = int(event.text)
         self.s_engin.is_criteria_changed = True
+        message = self.s_engin.get_descr_criteria()
+        self._go_search_people(message)
 
     def _choose_interests(self, message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.client.id, message)
@@ -188,8 +189,12 @@ class Bot(ModelDb, ActionInterface):
         self.curr_kb, self.curr_action = self._get_queue_kb()
         self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
         user = self.s_engin.start_found_users()
-        self.show_user_info(user)
-        self.show_user_photos(user)
+        if user is not None:
+            self.show_user_info(user)
+            self.show_user_photos(user)
+        else:
+            self.api.write_msg(self.client.id, 'Нет таких пользователей')
+            self._go_come_back('Может изменить критерии')
 
     def _add_to_blacklist(self, message='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.client.id, message)
@@ -203,8 +208,12 @@ class Bot(ModelDb, ActionInterface):
 
     def _show_next_user(self) -> None:
         user = self.s_engin.get_next_user()
-        self.show_user_info(user)
-        self.show_user_photos(user)
+        if user is not None:
+            self.show_user_info(user)
+            self.show_user_photos(user)
+        else:
+            self.api.write_msg(self.client.id, 'Нет таких пользователей')
+            self._go_come_back('Может изменить критерии')
 
     def do_another_action(self, event: Event) -> None:
         text = event.text
@@ -217,6 +226,8 @@ class Bot(ModelDb, ActionInterface):
     def show_user_info(self, user: User) -> None:
         message = user.get_user_info()
         self.api.write_msg(self.client.id, message)
+
+
 
     def show_user_photos(self, user: User) -> None:
         attachments = []

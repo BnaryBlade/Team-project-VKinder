@@ -11,9 +11,10 @@ class Criteria:
         self.age_from = self.MIN_AGE
         self.age_to = self.MAX_AGE
         self.sex = 0
-        self.cities_id: list[int] = [0, 21, 1]
+        self.city_id = 0
         self.city_title = ''
         self.is_criteria_changed = False
+        self.offset = 0
 
     def check_user(self, user: User) -> bool:
         return all([self.check_sex(user.sex),
@@ -24,16 +25,16 @@ class Criteria:
         return self.age_from <= age <= self.age_to
 
     def check_user_city(self, city_id: int) -> bool:
-        return city_id in self.cities_id
+        return city_id == self.city_id
 
     def check_sex(self, sex: int) -> bool:
-        return sex in self.sex
+        return True if not self.sex else sex == self.sex
 
     def set_criteria_from_user(self, user: User) -> None:
         self.age_from = user.get_age()
         self.age_to = user.get_age()
-        self.sex = user.sex if user.sex else self.LIST_SEX
-        self.cities_id = user.city_id
+        self.sex = user.sex if user.sex else 0
+        self.city_id = user.city_id
         self.city_title = user.city_title
 
     def get_descr_criteria(self) -> str:
@@ -48,6 +49,16 @@ class Criteria:
         )
         return text
 
+    def get_search_params(self) -> dict:
+        search_params = {'sex': self.sex,
+                         'city_id': self.city_id,
+                         'age_from': self.age_from,
+                         'age_to': self.age_to,
+                         'has_photo': 1,
+                         'fields': 'city,sex,bdate',
+                         'offset': self.offset}
+        return search_params
+
 
 class SearchEngine(Criteria):
     STEP_SEARCH = 10
@@ -57,12 +68,10 @@ class SearchEngine(Criteria):
         self.api = UserVkApi(token=user_token, user_id=user_id)
         self.is_search_going_on = False
         self.user_list = []
-        self.offset = 0
 
     def get_data_users(self) -> bool:
-        if users_data := self.api.search_users(
-                self.STEP_SEARCH, self.api.search_params, self.api.fields,
-                self.offset):
+        params = self.get_search_params()
+        if users_data := self.api.search_users(self.STEP_SEARCH, params):
             self.offset += self.STEP_SEARCH
             for data in users_data:
                 if not data.get('is_closed', 1):
