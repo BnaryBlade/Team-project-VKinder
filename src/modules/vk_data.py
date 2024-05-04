@@ -12,6 +12,30 @@ class Meths(StrEnum):
     GET_CITY = 'database.getCities'
 
 
+class KeyWord(StrEnum):
+    START_BOT = 'bot'
+    STOP_BOT = 'хватит'
+    EXIT_FROM_BOT = 'exit'
+    COME_BACK = 'назад'
+    FND_PEOPLE = 'найти Далёких странников'
+    FND_NEW_PEOPLE = 'найти новых людей'
+    SHOW_FAVORITES = 'показать избранных'
+    SHOW_BLACKLIST = 'показать неинтересных'
+    CLEAR_BLACKLIST = 'очистить черный список'
+    CLEAR_HISTORY = 'очистить список избранных'
+    CHOOSE_AGE = 'выбрать возраст'
+    CHOOSE_CITY = 'выбрать город'
+    CHOOSE_SEX = 'выбрать пол'
+    CHOOSE_INTERESTS = 'выбрать интересы'
+    LETS_SHOW = 'показывай'
+    NEXT_USER = 'покажи ещё одного...'
+    IS_INTERESTING = 'интересно'
+    IS_NOT_INTERESTING = 'не интересно'
+    PREVIOUS_PERSON = 'предыдущий'
+    DELETE_FROM_LIST = 'удалить из списка'
+    NEXT_PERSON = 'следующий'
+
+
 class Photo:
 
     def __init__(self, data: dict):
@@ -88,146 +112,111 @@ class User:
 class ActionInterface:
 
     def __init__(self):
-        self.kb_is_act = False
         self.curr_action = {}
         self.curr_kb = None
 
-    class KeyWord(StrEnum):
-        ENOUGH = 'хватит'
-        EXIT = 'exit'
-        COME_BACK = 'назад'
-        FND_PEOPLE = 'найти Далёких странников'
-        FND_NEW_PEOPLE = 'найти новых людей'
-        SHOW_FAVORITES = 'показать избранных'
-        SHOW_BLACKLIST = 'показать неинтересных'
-        CLEAR_BLACKLIST = 'очистить черный список'
-        CLEAR_HISTORY = 'очистить список избранных'
-        CHOOSE_AGE = 'выбрать возраст'
-        CHOOSE_CITY = 'выбрать город'
-        CHOOSE_SEX = 'выбрать пол'
-        CHOOSE_INTERESTS = 'выбрать интересы'
-        LETS_SHOW = 'показывай'
-        NEXT_USER = 'покажи ещё одного...'
-        IS_INTERESTING = 'интересно'
-        IS_NOT_INTERESTING = 'не интересно'
-        PREVIOUS_PERSON = 'предыдущий'
-        DELETE_FROM_LIST = 'удалить из списка'
-        NEXT_PERSON = 'следующий'
-
     def _get_start_dialog_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(self.KeyWord.FND_PEOPLE,
-                            VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.FND_PEOPLE, VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.PRIMARY)
+        keyboard.add_button(KeyWord.STOP_BOT, VkKeyboardColor.PRIMARY)
 
-        key_word = {self.KeyWord.FND_PEOPLE: self._go_choose_view_options,
-                    self.KeyWord.EXIT: self._exit_from_vkbot,
-                    self.KeyWord.ENOUGH: self._stop_bot_dialog}
+        key_word = {KeyWord.FND_PEOPLE: self._go_choose_view_options,
+                    KeyWord.STOP_BOT: self.stop_bot_dialog}
         return keyboard, key_word
 
     def _get_choosing_actions_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(self.KeyWord.FND_NEW_PEOPLE,
+        keyboard.add_button(KeyWord.FND_NEW_PEOPLE,
                             VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.SHOW_BLACKLIST,
+        keyboard.add_button(KeyWord.SHOW_BLACKLIST,
                             VkKeyboardColor.POSITIVE)
-        keyboard.add_button(self.KeyWord.SHOW_FAVORITES,
-                            VkKeyboardColor.POSITIVE)
-        keyboard.add_line()
-        keyboard.add_button(self.KeyWord.CLEAR_BLACKLIST,
-                            VkKeyboardColor.POSITIVE)
-        keyboard.add_button(self.KeyWord.CLEAR_HISTORY,
+        keyboard.add_button(KeyWord.SHOW_FAVORITES,
                             VkKeyboardColor.POSITIVE)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.CLEAR_BLACKLIST, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.CLEAR_HISTORY, VkKeyboardColor.POSITIVE)
+        keyboard.add_line()
+        keyboard.add_button(KeyWord.STOP_BOT, VkKeyboardColor.POSITIVE)
 
-        key_word = {self.KeyWord.FND_NEW_PEOPLE: self._go_search_people,
-                    self.KeyWord.SHOW_BLACKLIST: self._go_blacklist_view,
-                    self.KeyWord.SHOW_FAVORITES: self._go_favorites_view,
-                    self.KeyWord.CLEAR_HISTORY: self._clear_history,
-                    self.KeyWord.CLEAR_BLACKLIST: self._clear_blacklist,
-                    self.KeyWord.EXIT: self._exit_from_vkbot,
-                    self.KeyWord.ENOUGH: self._stop_bot_dialog}
+        key_word = {KeyWord.FND_NEW_PEOPLE: self._go_search_people,
+                    KeyWord.SHOW_BLACKLIST: self._go_blacklist_view,
+                    KeyWord.SHOW_FAVORITES: self._go_favorites_view,
+                    KeyWord.CLEAR_HISTORY: self._clear_history,
+                    KeyWord.CLEAR_BLACKLIST: self._clear_blacklist,
+                    KeyWord.STOP_BOT: self.stop_bot_dialog}
         return keyboard, key_word
 
     def _get_criteria_selection_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(self.KeyWord.CHOOSE_CITY,
-                            VkKeyboardColor.SECONDARY)
-        keyboard.add_button(self.KeyWord.CHOOSE_AGE, VkKeyboardColor.SECONDARY)
-        keyboard.add_button(self.KeyWord.CHOOSE_SEX, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.CHOOSE_CITY, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.CHOOSE_AGE, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.CHOOSE_SEX, VkKeyboardColor.POSITIVE)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.CHOOSE_INTERESTS,
+        keyboard.add_button(KeyWord.CHOOSE_INTERESTS,
                             VkKeyboardColor.POSITIVE)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.LETS_SHOW, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.LETS_SHOW, VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
+        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.STOP_BOT, VkKeyboardColor.POSITIVE)
 
-        key_word = {self.KeyWord.COME_BACK: self._go_come_back,
-                    self.KeyWord.CHOOSE_CITY: self._choose_city,
-                    self.KeyWord.CHOOSE_AGE: self._choose_age,
-                    self.KeyWord.CHOOSE_SEX: self._choose_sex,
-                    self.KeyWord.CHOOSE_INTERESTS: self._choose_interests,
-                    self.KeyWord.LETS_SHOW: self._go_browsing,
-                    self.KeyWord.EXIT: self._exit_from_vkbot,
-                    self.KeyWord.ENOUGH: self._stop_bot_dialog}
+        key_word = {KeyWord.COME_BACK: self._go_come_back,
+                    KeyWord.CHOOSE_CITY: self._choose_city,
+                    KeyWord.CHOOSE_AGE: self._choose_age,
+                    KeyWord.CHOOSE_SEX: self._choose_sex,
+                    KeyWord.CHOOSE_INTERESTS: self._choose_interests,
+                    KeyWord.LETS_SHOW: self._go_browsing,
+                    KeyWord.STOP_BOT: self.stop_bot_dialog}
         return keyboard, key_word
 
     def _get_queue_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(self.KeyWord.IS_NOT_INTERESTING,
+        keyboard.add_button(KeyWord.IS_NOT_INTERESTING,
                             VkKeyboardColor.SECONDARY)
-        keyboard.add_button(self.KeyWord.IS_INTERESTING,
+        keyboard.add_button(KeyWord.IS_INTERESTING,
                             VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.NEXT_USER, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.NEXT_USER, VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.COME_BACK, VkKeyboardColor.PRIMARY)
-        keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.PRIMARY)
+        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.PRIMARY)
+        keyboard.add_button(KeyWord.STOP_BOT, VkKeyboardColor.PRIMARY)
 
-        key_word = {self.KeyWord.IS_NOT_INTERESTING: self._add_to_blacklist,
-                    self.KeyWord.IS_INTERESTING: self._add_to_favorites,
-                    self.KeyWord.NEXT_USER: self._show_next_user,
-                    self.KeyWord.COME_BACK: self._go_come_back,
-                    self.KeyWord.EXIT: self._exit_from_vkbot,
-                    self.KeyWord.ENOUGH: self._stop_bot_dialog}
+        key_word = {KeyWord.IS_NOT_INTERESTING: self._add_to_blacklist,
+                    KeyWord.IS_INTERESTING: self._add_to_favorites,
+                    KeyWord.NEXT_USER: self._show_next_user,
+                    KeyWord.COME_BACK: self._go_come_back,
+                    KeyWord.STOP_BOT: self.stop_bot_dialog}
         return keyboard, key_word
 
     def _get_viewing_history_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(self.KeyWord.PREVIOUS_PERSON,
-                            VkKeyboardColor.SECONDARY)
-        keyboard.add_button(self.KeyWord.DELETE_FROM_LIST,
-                            VkKeyboardColor.NEGATIVE)
-        keyboard.add_button(self.KeyWord.NEXT_PERSON,
-                            VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.PREVIOUS_PERSON, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.DELETE_FROM_LIST, VkKeyboardColor.NEGATIVE)
+        keyboard.add_button(KeyWord.NEXT_PERSON, VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
+        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
         keyboard.add_line()
-        keyboard.add_button(self.KeyWord.ENOUGH, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.STOP_BOT, VkKeyboardColor.POSITIVE)
 
-        key_word = {self.KeyWord.NEXT_PERSON: self._show_next_person(),
-                    self.KeyWord.DELETE_FROM_LIST: self._delete_user,
-                    self.KeyWord.PREVIOUS_PERSON: self._show_previous_person(),
-                    self.KeyWord.COME_BACK: self._go_come_back,
-                    self.KeyWord.EXIT: self._exit_from_vkbot,
-                    self.KeyWord.ENOUGH: self._stop_bot_dialog}
+        key_word = {KeyWord.NEXT_PERSON: self._show_next_person(),
+                    KeyWord.DELETE_FROM_LIST: self._delete_user,
+                    KeyWord.PREVIOUS_PERSON: self._show_previous_person(),
+                    KeyWord.COME_BACK: self._go_come_back,
+                    KeyWord.STOP_BOT: self.stop_bot_dialog}
         return keyboard, key_word
 
     # Реализация комыды "exit" и кнопки "хватит", общих для всего интерфейса
-    def _exit_from_vkbot(self, message=''):
+    def exit_from_vkbot(self, message=''):
         pass
 
-    def _stop_bot_dialog(self, message=''):
+    def stop_bot_dialog(self, message=''):
         pass
 
     # Реализация интерфейса стартовой клавиатуры
-    def _start_bot_dialog(self, message=''):
+    def start_bot_dialog(self, message=''):
         pass
 
     def _go_choose_view_options(self, message=''):

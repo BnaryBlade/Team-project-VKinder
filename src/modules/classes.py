@@ -63,9 +63,9 @@ class Criteria:
 class SearchEngine(Criteria):
     STEP_SEARCH = 10
 
-    def __init__(self, user_token: str = None, user_id: int | str = None):
+    def __init__(self, api: UserVkApi):
         super().__init__()
-        self.api = UserVkApi(token=user_token, user_id=user_id)
+        self.api = api
         self.is_search_going_on = False
         self.user_list = []
 

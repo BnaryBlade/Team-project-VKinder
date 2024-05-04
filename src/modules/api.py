@@ -118,7 +118,7 @@ class BotVkApi(VkApi):
     def write_msg(self, user_id: int, message: str) -> bool:
         return self._send_msg(user_id, message)
 
-    def _send_msg(self, user_id: int, message='', kb='', r_id=False) -> bool:
+    def _send_msg(self, user_id: int, message='', kb='', r_id=True) -> bool:
         random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
                   'message': message,
