@@ -19,8 +19,6 @@ class TestClass:
 
     @classmethod
     def setup_class(cls):
-        # cls.login = os.environ['LOGIN_DB']
-        # cls.password = os.environ['PASSWORD_DB']
         cls.DSN = (f'postgresql+psycopg://{cls.login}:{cls.password}@'
                    f'localhost:5432/{cls.db_name}')
         if not database_exists(cls.DSN):
@@ -33,20 +31,23 @@ class TestClass:
         TestClass.model = ModelDb(self.login, self.password, self.db_name)
         assert isinstance(self.model, ModelDb)
 
-    @pytest.mark.parametrize('table_name', ('users', 'photos', 'blacklist'))
+    @pytest.mark.parametrize('table_name',
+                             ('clients', 'users', 'list_type', 'photos'))
     def test_is_tables_exists(self, table_name):
         engine = sq.create_engine(TestClass.DSN)
         some_inspect = sq.inspect(engine)
         assert not some_inspect.has_table(table_name)
 
-    @pytest.mark.parametrize('table_name', ('users', 'photos', 'blacklist'))
+    @pytest.mark.parametrize('table_name',
+                             ('clients', 'users', 'list_type', 'photos'))
     def test_created_all_tables(self, table_name):
         engine = sq.create_engine(TestClass.DSN)
         some_inspect = sq.inspect(engine)
         self.model.create_all_tables()
         assert some_inspect.has_table(table_name)
 
-    @pytest.mark.parametrize('table_name', ('users', 'photos', 'blacklist'))
+    @pytest.mark.parametrize('table_name',
+                             ('clients', 'users', 'list_type', 'photos'))
     def test_drop_all_tables(self, table_name):
         engine = sq.create_engine(TestClass.DSN)
         some_inspect = sq.inspect(engine)

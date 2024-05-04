@@ -1,38 +1,46 @@
 /* delete data from tables */
-DELETE FROM users *;
+--DELETE FROM users *;
 -- WHERE user_id > 0;
 
-/* inssert data into users */
-INSERT INTO users (first_name, last_name, user_age, sex, city, vk_id, prf_link, interests)
-VALUES ('igor_1', 'pavlov_1', 11, 1, 'town_1', 111111111, 'href_1', '{"семейное_положение": "холост"}'),
-       ('igor_2', 'pavlov_2', 12, 1, 'town_2', 111111112, 'href_2', '{"семейное_положение": "женат"}'),
-       ('igor_3', 'pavlov_3', 13, 1, 'town_3', 111111113, 'href_3', '{"семейное_положение": "в разводе"}'),
-       ('igor_4', 'pavlov_4', 14, 1, 'town_4', 111111114, 'href_4', '{"семейное_положение": "холост"}'),
-       ('igor_5', 'pavlov_5', 15, 1, 'town_5', 111111115, 'href_5', '{"семейное_положение": "холост"}');
 
-/* inssert data into blacklist */   
-INSERT INTO blacklist (vk_id)
-VALUES (111111113),
-       (111111114);
-
-/* inssert data into photos */ 
-INSERT INTO photos (photo_link, vk_id, user_mark)
-VALUES ('href_1', 111111114, false),
-       ('href_2', 111111115, true),
-       ('href_2', 111111115, true);
+--DELETE FROM clients
+-- WHERE clt_vk_id = 111111114;
+-- 
+--DELETE FROM users AS u
+-- WHERE u.usr_vk_id NOT IN
+--       (SELECT l.usr_vk_id FROM list_type AS l);
 
 
+DELETE FROM clients *;
+DELETE FROM users *;
+--DELETE FROM list_type *;
+--DELETE FROM photos *;
 
-/* inssert user first_data */
-INSERT INTO users (first_name, last_name, vk_id, prf_link)
-VALUES ('igor_01', 'pavlov_01', 111101111, 'href_01'),
-       ('igor_02', 'pavlov_02', 111101112, 'href_02');
+INSERT INTO clients (clt_vk_id)
+VALUES (111111111),
+       (111111112),
+       (111111113),
+       (111111114),
+       (111111115);
 
-/* update user data */
-UPDATE users
-   SET interests = '{"семейное положение": "холост", "жанр музыки": "рок"}'
- WHERE vk_id = 111101112
---/* inssert interests */
---INSERT INTO users (interests)
---VALUES('')
---WHERE ;
+INSERT INTO users (usr_vk_id, first_name, last_name, prf_link)
+VALUES (111101111, 'igor_1', 'pavlov_1', 'href_1'),
+       (211101111, 'igor_2', 'pavlov_2', 'href_2'),
+       (311101111, 'igor_3', 'pavlov_3', 'href_3'),
+       (411101111, 'igor_4', 'pavlov_4', 'href_4'),
+       (511101111, 'igor_5', 'pavlov_5', 'href_5');
+       
+INSERT INTO list_type (clt_vk_id, usr_vk_id, favorites, blacklist)
+    VALUES (111111111, 111101111, FALSE, TRUE),
+           (111111112, 211101111, FALSE, TRUE),
+           (111111113, 311101111, TRUE, FALSE),
+           (111111114, 411101111, TRUE, FALSE),
+           (111111115, 511101111, TRUE, FALSE);
+
+INSERT INTO photos (photo_id, owner_id, photo_link)
+VALUES (111, 111101111, 'href_11'),
+       (112, 211101111, 'href_12'),
+       (113, 311101111, 'href_13'),
+       (114, 411101111, 'href_14'),
+       (115, 511101111, 'href_15');
+
