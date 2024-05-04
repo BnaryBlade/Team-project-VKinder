@@ -132,10 +132,11 @@ class BotVkApi(VkApi):
             print('Не получилось отпарвить сообщение...')
             return False
 
-    def send_attachment(self, user_id: int, attachment='', r_id=True):
+    def send_attachment(self, user_id: int, message, attachment, r_id=True):
         random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
                   'random_id': random_id,
+                  'message': message,
                   'attachment': attachment}
         try:
             self.method(Meths.MESSAGES_SEND, values)

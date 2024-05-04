@@ -23,7 +23,7 @@ class Bot(ActionInterface):
         self.another_action: Any = None
 
     def event_handling(self, event: Event) -> None:
-        action = self.curr_action.get(event.text.lower())
+        action = self.curr_action.get(event.text)
         if action is not None:
             action()
         else:
@@ -55,6 +55,7 @@ class Bot(ActionInterface):
         self.curr_kb, self.curr_action = self._get_criteria_selection_kb()
         msg = self.s_engin.get_descr_criteria()
         self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
+        self.another_action = self.do_another_action
         self.api.write_msg(self.client.id, 'Но можете изменить эти данные...')
 
     def _clear_history(self, msg='Пока ещё не реализовали...') -> None:
@@ -80,29 +81,39 @@ class Bot(ActionInterface):
                                 KeyWord.COME_BACK: self._go_come_back}
             self.another_action = self._checking_city
 
+    def _choose_age(self, msg='') -> None:
+        msg = 'Укажите от какого и до какого возраста Вас интересуют люди...'
+        self.api.hide_kb(self.client.id, msg,
+                         self.curr_kb.get_empty_keyboard())
+        self.curr_action = {KeyWord.STOP_BOT: self.stop_bot_dialog,
+                            KeyWord.COME_BACK: self._go_come_back}
+        self.another_action = self._checking_age_input
+
+    def _choose_sex(self, msg='') -> None:
+        msg = ('Укажите, кто вас интересует:\n'
+               '\t"0" - не имеет значения;\n'
+               '\t"1" - люди женского пола;\n'
+               '\t"2" - люди мужского пола.')
+        self.api.hide_kb(self.client.id, msg,
+                         self.curr_kb.get_empty_keyboard())
+        self.curr_action = {KeyWord.STOP_BOT: self.stop_bot_dialog,
+                            KeyWord.COME_BACK: self._go_come_back}
+        self.another_action = self._checking_sex_input
+
     def _checking_city(self, event: Event):
         if city := self.s_engin.search_city(event.text, 1):
             self.s_engin.city_id = city[0].get('id', self.client.city_id)
-            self.s_engin.city_title = city[0].get(
-                'title', self.client.city_title
-            )
+            self.s_engin.city_title = city[0].get('title',
+                                                  self.client.city_title)
             self.s_engin.is_criteria_changed = True
             msg = self.s_engin.get_descr_criteria()
             self._go_search_people(msg)
         else:
             self.api.write_msg(self.client.id,
-                               'Такой город город я не знаю: введите'
+                               'Такой город я не знаю: введите'
                                ' другое название!\nИли, если передумали - '
                                'то наберите "назад", чтобы вернуться или '
                                '"хватит", чтобы закончить нашу беседу...')
-
-    def _choose_age(self, msg='') -> None:
-        msg = 'Укажите от какого и до какого возраста Вас интересуют люди...'
-        if self.api.hide_kb(self.client.id, msg,
-                            self.curr_kb.get_empty_keyboard()):
-            self.curr_action = {KeyWord.STOP_BOT: self.stop_bot_dialog,
-                                KeyWord.COME_BACK: self._go_come_back}
-            self.another_action = self._checking_age_input
 
     def _checking_age_input(self, event: Event) -> None:
         if all_ages := self.AGE_PATTERN.findall(event.text):
@@ -127,16 +138,6 @@ class Bot(ActionInterface):
                 self.client.id,
                 'Если передумали - наберите "назад", чтобы вернуться'
                 ' или "хватит", чтобы прервать диалог...')
-
-    def _choose_sex(self, msg='Укажите, кто вас интересует:') -> None:
-        if self.api.hide_kb(self.client.id, msg,
-                            self.curr_kb.get_empty_keyboard()):
-            self.curr_action = {KeyWord.STOP_BOT: self.stop_bot_dialog,
-                                KeyWord.COME_BACK: self._go_come_back}
-            self.another_action = self._checking_sex_input
-            self.api.write_msg(self.client.id, '- не имеет значения: "0";')
-            self.api.write_msg(self.client.id, '- люди женского пола: "1";')
-            self.api.write_msg(self.client.id, '- люди мужского пола: "2".')
 
     def _checking_sex_input(self, event: Event) -> None:
         try:
@@ -175,7 +176,6 @@ class Bot(ActionInterface):
         user = self.s_engin.start_found_users()
         if user is not None:
             self.show_user_info(user)
-            self.show_user_photos(user)
         else:
             self.api.write_msg(self.client.id, 'Нет таких пользователей')
             self._go_come_back('Может изменить критерии')
@@ -184,7 +184,6 @@ class Bot(ActionInterface):
         user = self.s_engin.get_next_user()
         if user is not None:
             self.show_user_info(user)
-            self.show_user_photos(user)
         else:
             self.api.write_msg(self.client.id, 'Нет таких пользователей')
             self._go_come_back('Может изменить критерии')
@@ -207,20 +206,17 @@ class Bot(ActionInterface):
     def _show_next_person(self, msg='Пока ещё не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
-    def do_another_action(self) -> None:
-        self.api.write_msg(self.client.id,
-                           'Я не совсем понимаю, чего Вы от меня хотите...')
+    def do_another_action(self, event: Event) -> None:
+        msg = '-'.join([event.text, 'я не понимаю, чего Вы от меня хотите...'])
+        self.api.write_msg(self.client.id, msg)
 
     def show_user_info(self, user: User) -> None:
         msg = user.get_user_info()
-        self.api.write_msg(self.client.id, msg)
-
-    def show_user_photos(self, user: User) -> None:
         attachments = []
         for pht in user.get_user_photos():
             attachment = f'photo{pht.owner_id}_{pht.photo_id}'
             attachments.append(attachment)
-        self.api.send_attachment(self.client.id, ','.join(attachments))
+        self.api.send_attachment(self.client.id, msg, ','.join(attachments))
 
 
 if __name__ == '__main__':
@@ -241,30 +237,31 @@ if __name__ == '__main__':
 
     for next_event in VkLongPoll(group_api).listen():
         if next_event.type == VkEventType.MESSAGE_NEW:
-            if (next_event.user_id == admin_api.admin.id
-                    and next_event.text.lower() == KeyWord.EXIT_FROM_BOT):
-                break
-            if next_event.user_id in all_bots:
-                curr_bot = all_bots.get(next_event.user_id)
-                if isinstance(curr_bot, Bot):
-                    if next_event.text.lower() == KeyWord.STOP_BOT:
-                        curr_bot.stop_bot_dialog()
-                        all_bots.pop(next_event.user_id)
-                    else:
-                        curr_bot.event_handling(next_event)
-            else:
-                if next_event.text.lower() == KeyWord.START_BOT:
-                    next_client = User(
-                        admin_api.get_users_info([next_event.user_id])[0]
-                    )
-                    next_bot = Bot(user_api=admin_api, bot_api=group_api,
-                                   model_db=database, user=next_client)
-                    message = 'Я снова с Вами... :-)'
-                    next_bot.start_bot_dialog(message)
-                    all_bots[next_event.user_id] = next_bot
+            if next_event.to_me:
+                if (next_event.user_id == admin_api.admin.id
+                        and next_event.text == KeyWord.EXIT_FROM_BOT):
+                    break
+                if next_event.user_id in all_bots:
+                    curr_bot = all_bots.get(next_event.user_id)
+                    if isinstance(curr_bot, Bot):
+                        if next_event.text == KeyWord.STOP_BOT:
+                            curr_bot.stop_bot_dialog()
+                            all_bots.pop(next_event.user_id)
+                        else:
+                            curr_bot.event_handling(next_event)
+                else:
+                    if next_event.text.lower() == KeyWord.START_BOT:
+                        next_client = User(
+                            admin_api.get_users_info([next_event.user_id])[0]
+                        )
+                        next_bot = Bot(user_api=admin_api, bot_api=group_api,
+                                       model_db=database, user=next_client)
+                        message = 'Я снова с Вами... :-)'
+                        next_bot.start_bot_dialog(message)
+                        all_bots[next_event.user_id] = next_bot
 
     message = 'Админ меня убил... :-('
-    for next_bot in all_bots:
+    for _, next_bot in all_bots.items():
         next_bot.stop_bot_dialog(message)
     all_bots.clear()
 

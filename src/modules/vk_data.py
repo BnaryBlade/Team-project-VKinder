@@ -150,17 +150,15 @@ class ActionInterface:
 
     def _get_criteria_selection_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
+        keyboard.add_button(KeyWord.LETS_SHOW, VkKeyboardColor.SECONDARY)
+        keyboard.add_line()
         keyboard.add_button(KeyWord.CHOOSE_CITY, VkKeyboardColor.SECONDARY)
         keyboard.add_button(KeyWord.CHOOSE_AGE, VkKeyboardColor.SECONDARY)
         keyboard.add_button(KeyWord.CHOOSE_SEX, VkKeyboardColor.POSITIVE)
-        keyboard.add_line()
         keyboard.add_button(KeyWord.CHOOSE_INTERESTS,
                             VkKeyboardColor.POSITIVE)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.LETS_SHOW, VkKeyboardColor.SECONDARY)
-        keyboard.add_line()
         keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
-        keyboard.add_line()
         keyboard.add_button(KeyWord.STOP_BOT, VkKeyboardColor.POSITIVE)
 
         key_word = {KeyWord.COME_BACK: self._go_come_back,
