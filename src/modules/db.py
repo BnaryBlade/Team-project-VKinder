@@ -2,8 +2,8 @@ import os
 
 import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
-
-from sqlalchemy import select  # insert, update, join, delete
+from sqlalchemy.exc import IntegrityError
+# from sqlalchemy import select  # insert, update, join, delete
 
 Base = declarative_base()
 
@@ -14,7 +14,7 @@ class Clients(Base):
     client_id = sq.Column(sq.Integer, primary_key=True)
 
     user = relationship('ListType', backref='client',
-                        cascade='all, delete-orphan')
+                        cascade='all, delete')
 
     # list_t = relationship('ListType', back_populates='client',
     #                       cascade='all, delete')
@@ -31,11 +31,13 @@ class Users(Base):
     last_name = sq.Column(sq.String(length=50), nullable=False)
     prf_link = sq.Column(sq.Text, nullable=False)
 
+    # client = relationship('ListType', backref='user',
+    #                       cascade='all, delete-orphan')
     client = relationship('ListType', backref='user',
-                          cascade='all, delete-orphan')
+                          cascade='all, delete')
 
     photo = relationship('Photos', backref='user',
-                         cascade='all, delete-orphan')
+                         cascade='all, delete')
 
     def __str__(self) -> str:
         return f'{self.user_id=} {self.first_name=} {self.last_name=}'
@@ -97,29 +99,40 @@ class ModelDb:
                f'{self._server}:{self._port}/{self.db_name}')
         return sq.create_engine(url=dsn)
 
-    def add_user_record_to_db(self, user: Users, flag: tuple[bool, bool],
-                              photos: list[Photos], client: Clients):
+    def write_users_to_db(self, user: Users, client: Clients,
+                          photos: list[Photos], blacklisted: bool):
+
+        # client = Clients(client_id=client_id)
+        list_t = ListType(user_id=user.user_id, blacklist=blacklisted,
+                          client_id=client.client_id)
         with self.Session() as s:
-            list_t = ListType(user_id=user.user_id, blacklist=flag[1],
-                              client_id=client.client_id, favorites=flag[0])
-            s.add_all([client, user, list_t, *photos])
+            try:
+                s.add(client)
+            except IntegrityError:
+                s.rollback()
+                print('Такой клиент уже есть...')
+                s.add_all([user, list_t, *photos])
+            else:
+                s.add_all([client, user, list_t, *photos])
             s.commit()
 
-    def download_blacklist(self, client_id: int) -> dict[Users, list[Photos]]:
-        users = {}
-        with self.Session() as s:
-            qr = s.query(Users, Photos).join(
-                ListType
-            ).outerjoin(
-                Photos
-            ).filter(
-                sq.and_(ListType.blacklist, ListType.client_id == client_id)
-            ).all()
-            for user, photo in qr:
-                users.setdefault(user, []).append(photo)
-            return users
+    # def download_blacklist(self,
+    #                        client_id: int) -> dict[Users, list[Photos]]:
+    #     users = Users{}
+    #     with self.Session() as s:
+    #         qr = s.query(Users, Photos).join(
+    #             ListType
+    #         ).outerjoin(
+    #             Photos
+    #         ).filter(
+    #             sq.and_(ListType.blacklist, ListType.client_id == client_id)
+    #         ).all()
+    #         for user, photo in qr:
+    #             users.setdefault(user, []).append(photo)
+    #         return users
 
-    def download_favorites(self, client_id: int) -> dict[Users: list[Photos]]:
+    def download_users(self, client_id: int,
+                       blacklisted: bool) -> dict[Users: list[Photos]]:
         users = {}
         with self.Session() as s:
             qr = s.query(Users, Photos).join(
@@ -127,7 +140,7 @@ class ModelDb:
             ).outerjoin(
                 Photos
             ).filter(
-                sq.and_(sq.not_(ListType.blacklist),
+                sq.and_(ListType.blacklist == blacklisted,
                         ListType.client_id == client_id)
             ).all()
             for user, photo in qr:
@@ -144,31 +157,29 @@ class ModelDb:
 if __name__ == '__main__':
     login_db = os.environ['LOGIN_DB']
     password_db = os.environ['PASSWORD_DB']
-    #
-
-    # client = Clients(user)
-    # user = Users(user_id=101, first_name='igor',
-    #              last_name='pervi', prf_link='href 11')
-    # client = Clients(client_id=111)
-    # client2 = Clients(client_id=112)
-    # curr_list = ListType(client_id=client.client_id,
-    #                      user_id=user.user_id,
-    #                      favorites=False,
-    #                      blacklist=True)
-    # session.add(curr_list)
-    # s.add_all([user, client, curr_list])
-
     model = ModelDb(login_db, password_db, db_name='vk_bot_db')
+    #
+    #
+    # with model.Session() as s:
+    #     user = Users(user_id=101, first_name='igor', last_name='pervi',
+    #                  prf_link='href 11')
+    #     client = Clients(client_id=111)
+    #     curr_list = ListType(client_id=client.client_id,
+    #                          user_id=user.user_id,
+    #                          blacklist=True)
+    #     curr_list.
+    #     session.add(curr_list)
+    #     s.add_all([user, client, curr_list])
 
-    model.drop_all_table()
-    model.create_all_tables()
-    # my_dict: dict = model.download_blacklist(111111111)
-    # print(my_dict, type(my_dict))
-    # # for k, v in my_dict.items():
-    # #     print(k)
-    # #     print(*v, sep='\n')
-    # # print()
-    # print(model.download_favorites(111111111))
+    # model.drop_all_table()
+    # model.create_all_tables()
+    my_dict: dict = model.download_users(861256395, True)
+    print(my_dict, type(my_dict))
+    for k, v in my_dict.items():
+        print(k)
+        print(*v, sep='\n')
+    # print()
+    # print(model.download_users(111111111, True))
     # # usr = Users({'id': 555444111})
     # print(usr)
     # model.add_record()

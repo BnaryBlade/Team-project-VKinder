@@ -8,7 +8,7 @@ from vk_api import VkApi, ApiError
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import Event
 
-from db import ModelDb, Users, Photos
+from db import ModelDb, Users, Photos, Clients
 from vk_data import KeyWord, Meths, DftSrcCriteria
 from additional_data import perform_authorization
 
@@ -304,8 +304,6 @@ class SearchEngine(Criteria):
         if users_data := self.api.search_users(params):
             self.offset += DftSrcCriteria.STEP_SEARCH
             for data in users_data:
-                print(data)
-                print()
                 if not data.get('is_closed', 1):
                     user = User(data)
                     if (user.id not in self.blacklist_ids
@@ -348,10 +346,6 @@ class SearchEngine(Criteria):
 
     def search_city(self, city_name: str, count=1) -> list[dict]:
         return self.api.get_city(city_name, count)
-
-    def set_init_search_params(self, client: User, user_ids: set) -> None:
-        self.set_criteria_from_user(client)
-        self.blacklist_ids = user_ids
 
 
 class ActionInterface:
@@ -526,8 +520,8 @@ class UserBot(ActionInterface):
         self.api = bot_api
         self.client = user
         self.curr_user: User | None = None
-        self.blacklist: list = []
-        self.favorite_list = []
+        self.blacklist = set()
+        self.favorite_list = set()
         self.another_action: Any = None
 
     def event_handling(self, event: Event) -> None:
@@ -540,11 +534,12 @@ class UserBot(ActionInterface):
     def start_bot_dialog(self, msg='') -> None:
         self.curr_kb, self.curr_action = self._get_start_dialog_kb()
         self.another_action = self.do_another_action
-        db_users = self.db.download_blacklist(self.client.id)
-        # users = self.cnvrt_db_rec_to_users(db_users)
-        self.blacklist = self.cnvrt_db_rec_to_users(db_users)
-        blacklist_ids = {usr.id for usr in self.blacklist}
-        self.s_engin.set_init_search_params(self.client, blacklist_ids)
+        bl_users = self.db.download_users(self.client.id, blacklisted=True)
+        self.blacklist = self.cnvrt_db_rec_to_users(bl_users)
+        fl_users = self.db.download_users(self.client.id, blacklisted=False)
+        self.favorite_list = self.cnvrt_db_rec_to_users(fl_users)
+        self.s_engin.blacklist_ids = {usr.id for usr in self.blacklist}
+        self.s_engin.set_criteria_from_user(self.client)
         self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
 
     def stop_bot_dialog(self, msg='Ладно, и мне пора... :-)') -> None:
@@ -581,6 +576,7 @@ class UserBot(ActionInterface):
 
     def _go_come_back(self, msg='Передумали... :-(') -> None:
         if self.s_engin.is_search_going_on:
+            self.curr_user = None
             self.s_engin.stop_found_users()
             self.s_engin.set_criteria_from_user(self.client)
         elif self.s_engin.is_criteria_changed:
@@ -677,26 +673,39 @@ class UserBot(ActionInterface):
     def _go_browsing(self, msg='Поищем...') -> None:
         self.curr_kb, self.curr_action = self._get_queue_kb()
         self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
-        user = self.s_engin.start_found_users()
-        if user is not None:
-            self.show_user_info(user)
-        else:
-            self.api.write_msg(self.client.id, 'Нет таких пользователей')
-            self._go_come_back('Может изменить критерии')
+        self.curr_user = self.s_engin.start_found_users()
+        self.show_user_info(self.curr_user)
 
     def _show_next_user(self) -> None:
-        user = self.s_engin.get_next_user()
-        if user is not None:
-            self.show_user_info(user)
+        self.curr_user = self.s_engin.get_next_user()
+        self.show_user_info(self.curr_user)
+
+    def _add_to_blacklist(self, msg='Занес в черный список...:-(') -> None:
+        if self.curr_user in self.favorite_list:
+            message = 'Данный пользователь занесен в избранное...'
+            self.api.write_msg(self.client.id, message)
+        elif self.curr_user in self.blacklist:
+            message = 'Данный пользователь уже занесен в чёрный список...'
+            self.api.write_msg(self.client.id, message)
         else:
-            self.api.write_msg(self.client.id, 'Нет таких пользователей')
-            self._go_come_back('Может изменить критерии')
+            self.blacklist.add(self.curr_user)
+            self.s_engin.blacklist_ids.add(self.curr_user.id)
+            args = self.cnvrt_users_to_db_rec(self.curr_user, self.client.id)
+            self.db.write_users_to_db(*args, blacklisted=True)
+            self.api.write_msg(self.client.id, msg)
 
-    def _add_to_blacklist(self, msg='Пока не реализовали...') -> None:
-        self.api.write_msg(self.client.id, msg)
-
-    def _add_to_favorites(self, msg='Пока не реализовали...') -> None:
-        self.api.write_msg(self.client.id, msg)
+    def _add_to_favorites(self, msg='Добавил к избранным...:-)') -> None:
+        if self.curr_user in self.favorite_list:
+            message = 'Данный пользователь уже занесен в избранное...'
+            self.api.write_msg(self.client.id, message)
+        elif self.curr_user in self.blacklist:
+            message = 'Данный пользователь занесен в чёрный список...'
+            self.api.write_msg(self.client.id, message)
+        else:
+            self.favorite_list.add(self.curr_user)
+            args = self.cnvrt_users_to_db_rec(self.curr_user, self.client.id)
+            self.db.write_users_to_db(*args, blacklisted=False)
+            self.api.write_msg(self.client.id, msg)
 
     def _show_previous_person(self, msg='Пока не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
@@ -712,33 +721,36 @@ class UserBot(ActionInterface):
         self.api.write_msg(self.client.id, msg)
 
     def show_user_info(self, user: User) -> None:
-        msg = user.get_user_info()
-        attachments = []
-        for pht in user.get_user_photos():
-            attachment = f'photo{pht.owner_id}_{pht.photo_id}'
-            attachments.append(attachment)
-        self.api.send_attachment(self.client.id, msg, ','.join(attachments))
-
-    # def get_users_from_blacklist(self) -> tuple[set[int], list[User]]:
-    #     db_users = self.db.download_blacklist(self.client.id)
-    #     user_ids = set()
-    #     users = []
-    #     for db_u, db_phs in db_users:
-    #         user = User({})
-    #         user.init_user_from_db_record(db_u)
-    #         user_phs: list = []
-    #         for db_ph in db_phs:
-    #             if db_ph is not None:
-    #                 ph = Photo({})
-    #                 ph.init_photo_from_db_record(db_ph)
-    #                 user_phs.append(ph)
-    #         user.list_photos.extend(user_phs)
-    #         user_ids.add(user.id)
-    #     return user_ids, users
+        if user is not None:
+            msg = user.get_user_info()
+            attachments = []
+            for pht in user.get_user_photos():
+                attachment = f'photo{pht.owner_id}_{pht.photo_id}'
+                attachments.append(attachment)
+            self.api.send_attachment(self.client.id, msg,
+                                     ','.join(attachments))
+        else:
+            self.api.write_msg(self.client.id, 'Нет пользователей...')
+            self._go_come_back('Может изменим варианты просмотра...')
 
     @staticmethod
-    def cnvrt_db_rec_to_users(db_users: dict) -> list[User]:
-        users = []
+    def cnvrt_users_to_db_rec(user: User, client_id: int) -> tuple:
+        """Метод возвращает подготовленные записи в БД
+
+        Порядок возврата результата важен для передачи в метод модели БД для
+        последующей записей этих данных
+        :param user:
+        :param client_id:
+        :return: tuple[Users, int, list[Photos]
+        """
+        db_user = user.get_user_record_for_db()
+        db_client = Clients(client_id=client_id)
+        db_photos = [ph.get_photo_record_for_db() for ph in user.list_photos]
+        return db_user, db_client, db_photos
+
+    @staticmethod
+    def cnvrt_db_rec_to_users(db_users: dict) -> set[User]:
+        users = set()
         for db_u, db_phs in db_users.items():
             user = User({})
             user.init_user_from_db_record(db_u)
@@ -749,5 +761,5 @@ class UserBot(ActionInterface):
                     ph.init_photo_from_db_record(db_ph)
                     user_phs.append(ph)
             user.list_photos.extend(user_phs)
-            users.append(user)
+            users.add(user)
         return users
