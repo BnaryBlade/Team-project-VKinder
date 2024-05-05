@@ -1,14 +1,14 @@
 import re
 import traceback
 from random import randrange
-from datetime import datetime
 from typing import Any
+from datetime import datetime
 
 from vk_api import VkApi, ApiError
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import Event
 
-from db import ModelDb
+from db import ModelDb, Users, Photos
 from vk_data import KeyWord, Meths, DftSrcCriteria
 from additional_data import perform_authorization
 
@@ -21,11 +21,23 @@ class Photo:
         self.owner_id = data.get('owner_id', 0)
         self.photo_id = data.get('id', 0)
         self.photo_sizes = data.get('sizes', [])
-        self.photo_link = data.get('sizes', [])[-1].get('url', '')
+        self.photo_link = data.get('sizes', [{}])[-1].get('url', '')
         self.count_likes = data.get('likes', {}).get('count', 0)
         self.user_likes = data.get('likes', {}).get('user_likes', 0)
         self.web_view_token = data.get('web_view_token', '')
         self.user_mark = False
+
+    def get_photo_record_for_db(self) -> Photos:
+        db_photo = Photos(photo_id=self.photo_id, owner_id=self.owner_id,
+                          photo_link=self.photo_link, user_mark=self.user_mark)
+        return db_photo
+
+    def init_photo_from_db_record(self, ph: Photos) -> None:
+        if ph is not None:
+            self.photo_id = ph.photo_id
+            self.owner_id = ph.owner_id
+            self.photo_link = ph.photo_link
+            self.user_mark = ph.user_mark
 
 
 class User:
@@ -36,8 +48,6 @@ class User:
     :param data: является словарeм, описывающим поля пользователя
     """
 
-    BASE_USER_URL = 'https://vk.com/id'
-
     def __init__(self, data: dict):
         self.id: int = data.get('id', 0)
         self.first_name: str = data.get('first_name', '')
@@ -46,10 +56,11 @@ class User:
         self.city_id: int = data.get('city', {}).get('id', 0)
         self.city_title: str = data.get('city', {}).get('title', '')
         self.sex: int = data.get('sex', 0)
+        self.prf_link = f'https://vk.com/id{self.id}'
         self.list_photos: list[Photo] = []
 
     def update_user_data(self, data: dict) -> None:
-        """Обновляет информацию из"""
+        """Обновляет информацию о пользователе"""
         self.id: int = data.get('id', 0)
         self.first_name: str = data.get('first_name', '')
         self.last_name: str = data.get('last_name', '')
@@ -68,14 +79,22 @@ class User:
         else:
             return 0
 
-    def get_prf_link(self) -> str:
-        return ''.join([self.BASE_USER_URL, str(self.id)])
+    def get_user_record_for_db(self) -> Users:
+        db_user = Users(user_id=self.id, first_name=self.first_name,
+                        last_name=self.last_name, prf_link=self.prf_link)
+        return db_user
+
+    def init_user_from_db_record(self, user: Users) -> None:
+        self.id = user.user_id
+        self.first_name = user.first_name
+        self.last_name = user.last_name
+        self.prf_link = user.prf_link
 
     def get_user_info(self) -> str:
         text = (
             f'''
             {self.last_name} {self.first_name}
-            {self.get_prf_link()}
+            {self.prf_link}
             '''
         )
         return text
@@ -185,20 +204,6 @@ class GropVkApi(VkApi):
     def write_msg(self, user_id: int, message: str) -> bool:
         return self._send_msg(user_id, message)
 
-    def _send_msg(self, user_id: int, message='', kb='', r_id=True) -> bool:
-        random_id = randrange(10 ** 7) if r_id else 0
-        values = {'user_id': user_id,
-                  'message': message,
-                  'random_id': random_id,
-                  'keyboard': kb}
-        try:
-            self.method(Meths.MESSAGES_SEND, values)
-            return True
-        except ApiError:
-            traceback.print_exc()
-            print('Не получилось отпарвить сообщение...')
-            return False
-
     def send_attachment(self, user_id: int, message, attachment, r_id=True):
         random_id = randrange(10 ** 7) if r_id else 0
         values = {'user_id': user_id,
@@ -211,6 +216,20 @@ class GropVkApi(VkApi):
         except ApiError:
             traceback.print_exc()
             print('Не получилось отпарвить фото...')
+            return False
+
+    def _send_msg(self, user_id: int, message='', kb='', r_id=True) -> bool:
+        random_id = randrange(10 ** 7) if r_id else 0
+        values = {'user_id': user_id,
+                  'message': message,
+                  'random_id': random_id,
+                  'keyboard': kb}
+        try:
+            self.method(Meths.MESSAGES_SEND, values)
+            return True
+        except ApiError:
+            traceback.print_exc()
+            print('Не получилось отпарвить сообщение...')
             return False
 
 
@@ -227,9 +246,9 @@ class Criteria:
         self.offset = 0
 
     def check_user(self, user: User) -> bool:
-        return all([self.check_sex(user.sex),
-                    self.check_user_age(user.get_age()),
-                    self.check_user_city(user.city_id)])
+        return (self.check_sex(user.sex)
+                and self.check_user_age(user.get_age())
+                and self.check_user_city(user.city_id))
 
     def check_user_age(self, age: int) -> bool:
         return self.age_from <= age <= self.age_to
@@ -277,6 +296,7 @@ class SearchEngine(Criteria):
         super().__init__()
         self.api = api
         self.is_search_going_on = False
+        self.blacklist_ids = set()
         self.user_list = []
 
     def get_data_users(self) -> bool:
@@ -288,7 +308,8 @@ class SearchEngine(Criteria):
                 print()
                 if not data.get('is_closed', 1):
                     user = User(data)
-                    if self.check_user(user):
+                    if (user.id not in self.blacklist_ids
+                            and self.check_user(user)):
                         user.list_photos = self.upload_photos(user.id)
                         self.user_list.append(user)
             return True
@@ -327,6 +348,10 @@ class SearchEngine(Criteria):
 
     def search_city(self, city_name: str, count=1) -> list[dict]:
         return self.api.get_city(city_name, count)
+
+    def set_init_search_params(self, client: User, user_ids: set) -> None:
+        self.set_criteria_from_user(client)
+        self.blacklist_ids = user_ids
 
 
 class ActionInterface:
@@ -416,9 +441,9 @@ class ActionInterface:
         keyboard.add_line()
         keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.POSITIVE)
 
-        key_word = {KeyWord.NEXT_PERSON: self._show_next_person(),
+        key_word = {KeyWord.NEXT_PERSON: self._show_next_person,
                     KeyWord.DELETE_FROM_LIST: self._delete_user,
-                    KeyWord.PREVIOUS_PERSON: self._show_previous_person(),
+                    KeyWord.PREVIOUS_PERSON: self._show_previous_person,
                     KeyWord.COME_BACK: self._go_come_back,
                     KeyWord.STOP_USER_BOT: self.stop_bot_dialog}
         return keyboard, key_word
@@ -476,10 +501,6 @@ class ActionInterface:
     def _add_to_favorites(self, message=''):
         pass
 
-    # Реализация кнопки "предыдущий" клвавиатуры просмотра избранных
-    def _show_previous_user(self, message=''):
-        pass
-
     def _show_previous_person(self, message=''):
         pass
 
@@ -501,9 +522,12 @@ class UserBot(ActionInterface):
                  bot_api: GropVkApi, model_db: ModelDb) -> None:
         super().__init__()
         self.s_engin = SearchEngine(user_api)
-        self.api = bot_api
         self.db = model_db
+        self.api = bot_api
         self.client = user
+        self.curr_user: User | None = None
+        self.blacklist: list = []
+        self.favorite_list = []
         self.another_action: Any = None
 
     def event_handling(self, event: Event) -> None:
@@ -516,7 +540,11 @@ class UserBot(ActionInterface):
     def start_bot_dialog(self, msg='') -> None:
         self.curr_kb, self.curr_action = self._get_start_dialog_kb()
         self.another_action = self.do_another_action
-        self.s_engin.set_criteria_from_user(self.client)
+        db_users = self.db.download_blacklist(self.client.id)
+        # users = self.cnvrt_db_rec_to_users(db_users)
+        self.blacklist = self.cnvrt_db_rec_to_users(db_users)
+        blacklist_ids = {usr.id for usr in self.blacklist}
+        self.s_engin.set_init_search_params(self.client, blacklist_ids)
         self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
 
     def stop_bot_dialog(self, msg='Ладно, и мне пора... :-)') -> None:
@@ -528,12 +556,14 @@ class UserBot(ActionInterface):
         self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
 
     def _go_blacklist_view(self, msg='Посмотрим...') -> None:
+        message = msg
         self.curr_kb, self.curr_action = self._get_viewing_history_kb()
-        self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
 
     def _go_favorites_view(self, msg='Посмотрим...') -> None:
+        message = msg
         self.curr_kb, self.curr_action = self._get_viewing_history_kb()
-        self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
+        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
 
     def _go_search_people(self, msg='') -> None:
         self.curr_kb, self.curr_action = self._get_criteria_selection_kb()
@@ -543,10 +573,10 @@ class UserBot(ActionInterface):
         self.another_action = self.do_another_action
         # self.api.write_msg(self.client.id, msg)
 
-    def _clear_history(self, msg='Пока ещё не реализовали...') -> None:
+    def _clear_history(self, msg='Пока реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
-    def _clear_blacklist(self, msg='Пока ещё не реализовали...') -> None:
+    def _clear_blacklist(self, msg='Пока реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
     def _go_come_back(self, msg='Передумали... :-(') -> None:
@@ -662,22 +692,19 @@ class UserBot(ActionInterface):
             self.api.write_msg(self.client.id, 'Нет таких пользователей')
             self._go_come_back('Может изменить критерии')
 
-    def _add_to_blacklist(self, msg='Пока ещё не реализовали...') -> None:
+    def _add_to_blacklist(self, msg='Пока не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
-    def _add_to_favorites(self, msg='Пока ещё не реализовали...') -> None:
+    def _add_to_favorites(self, msg='Пока не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
-    def _show_previous_user(self, msg='Пока ещё не реализовали...') -> None:
+    def _show_previous_person(self, msg='Пока не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
-    def _show_previous_person(self, msg='Пока ещё не реализовали...') -> None:
+    def _delete_user(self, msg='Пока не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
-    def _delete_user(self, msg='Пока ещё не реализовали...') -> None:
-        self.api.write_msg(self.client.id, msg)
-
-    def _show_next_person(self, msg='Пока ещё не реализовали...') -> None:
+    def _show_next_person(self, msg='Пока не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
     def do_another_action(self, event: Event) -> None:
@@ -691,3 +718,36 @@ class UserBot(ActionInterface):
             attachment = f'photo{pht.owner_id}_{pht.photo_id}'
             attachments.append(attachment)
         self.api.send_attachment(self.client.id, msg, ','.join(attachments))
+
+    # def get_users_from_blacklist(self) -> tuple[set[int], list[User]]:
+    #     db_users = self.db.download_blacklist(self.client.id)
+    #     user_ids = set()
+    #     users = []
+    #     for db_u, db_phs in db_users:
+    #         user = User({})
+    #         user.init_user_from_db_record(db_u)
+    #         user_phs: list = []
+    #         for db_ph in db_phs:
+    #             if db_ph is not None:
+    #                 ph = Photo({})
+    #                 ph.init_photo_from_db_record(db_ph)
+    #                 user_phs.append(ph)
+    #         user.list_photos.extend(user_phs)
+    #         user_ids.add(user.id)
+    #     return user_ids, users
+
+    @staticmethod
+    def cnvrt_db_rec_to_users(db_users: dict) -> list[User]:
+        users = []
+        for db_u, db_phs in db_users.items():
+            user = User({})
+            user.init_user_from_db_record(db_u)
+            user_phs: list = []
+            for db_ph in db_phs:
+                if db_ph is not None:
+                    ph = Photo({})
+                    ph.init_photo_from_db_record(db_ph)
+                    user_phs.append(ph)
+            user.list_photos.extend(user_phs)
+            users.append(user)
+        return users

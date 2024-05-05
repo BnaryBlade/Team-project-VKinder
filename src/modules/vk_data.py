@@ -36,3 +36,4 @@ class KeyWord(StrEnum):
     PREVIOUS_PERSON = 'предыдущий'
     DELETE_FROM_LIST = 'удалить из списка'
     NEXT_PERSON = 'следующий'
+

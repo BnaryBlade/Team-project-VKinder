@@ -1,8 +1,9 @@
 import os
+
 import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-from sqlalchemy import select, insert, update, join, delete
+from sqlalchemy import select  # insert, update, join, delete
 
 Base = declarative_base()
 
@@ -10,51 +11,70 @@ Base = declarative_base()
 class Clients(Base):
     __tablename__ = 'clients'
 
-    client_id = sq.Column(sq.Integer, nullable=False, autoincrement=True)
-    clt_vk_id = sq.Column(sq.Integer, primary_key=True, nullable=True)
+    client_id = sq.Column(sq.Integer, primary_key=True)
+
+    user = relationship('ListType', backref='client',
+                        cascade='all, delete-orphan')
+
+    # list_t = relationship('ListType', back_populates='client',
+    #                       cascade='all, delete')
+
+    def __str__(self) -> str:
+        return f'{self.client_id=}'
 
 
 class Users(Base):
     __tablename__ = 'users'
 
-    user_id = sq.Column(sq.Integer, nullable=False, autoincrement=True)
-    usr_vk_id = sq.Column(sq.Integer, primary_key=True, nullable=True)
+    user_id = sq.Column(sq.Integer, primary_key=True)
     first_name = sq.Column(sq.String(length=50), nullable=False)
     last_name = sq.Column(sq.String(length=50), nullable=False)
     prf_link = sq.Column(sq.Text, nullable=False)
+
+    client = relationship('ListType', backref='user',
+                          cascade='all, delete-orphan')
+
+    photo = relationship('Photos', backref='user',
+                         cascade='all, delete-orphan')
+
+    def __str__(self) -> str:
+        return f'{self.user_id=} {self.first_name=} {self.last_name=}'
 
 
 class ListType(Base):
     __tablename__ = 'list_type'
 
-    clt_vk_id = sq.Column(sq.Integer, sq.ForeignKey(Clients.clt_vk_id),
+    client_id = sq.Column(sq.Integer, sq.ForeignKey('clients.client_id'),
                           primary_key=True, nullable=False)
-    usr_vk_id = sq.Column(sq.Integer, sq.ForeignKey(Users.usr_vk_id),
-                          primary_key=True, nullable=False)
-    favorites = sq.Column(sq.Boolean, default=False, nullable=False)
+    user_id = sq.Column(sq.Integer, sq.ForeignKey('users.user_id'),
+                        primary_key=True, nullable=False)
     blacklist = sq.Column(sq.Boolean, default=False, nullable=False)
 
     # Define a check constrains:
-    __table_args__ = (
-        sq.CheckConstraint('favorites != blacklist', name='check_list'),
-    )
 
-    # Define a relationship with Users and Clients:
-    users = relationship(Users, backref='list_type', cascade='all, delete')
-    clients = relationship(Clients, backref='list_type', cascade='all, delete')
+    #
+    # client = relationship('clients', back_populates='list_t')
+    # user = relationship('users', back_populates='list_t')
+
+    # users = relationship('users', cascade='all,delete',
+    #                      backref='list_type')
+    def __str__(self) -> str:
+        return f'{self.client_id=} {self.user_id=}, {self.blacklist=}'
 
 
 class Photos(Base):
     __tablename__ = 'photos'
 
-    photo_id = sq.Column(sq.Integer, primary_key=True, nullable=False)
-    owner_id = sq.Column(sq.Integer, sq.ForeignKey(Users.usr_vk_id),
+    photo_id = sq.Column(sq.Integer, primary_key=True)
+    owner_id = sq.Column(sq.Integer, sq.ForeignKey(Users.user_id),
                          nullable=False)
     photo_link = sq.Column(sq.Text, nullable=False)
-    user_mark = sq.Column(sq.Boolean, default=False)
+    user_mark = sq.Column(sq.Boolean, default=False, nullable=False)
 
     # Define a relationship with Users:
-    users = relationship(Users, backref='photos', cascade='all, delete')
+
+    def __str__(self) -> str:
+        return f'{self.photo_id=} {self.owner_id=}'
 
 
 class ModelDb:
@@ -71,15 +91,48 @@ class ModelDb:
         self._adapter = db_adapter
         self.engine = self._create_engine(login, password)
         self.Session = sessionmaker(self.engine)
-        # self.users = []
 
     def _create_engine(self, login: str, password: str) -> sq.Engine:
         dsn = (f'postgresql+{self._adapter}://{login}:{password}@'
                f'{self._server}:{self._port}/{self.db_name}')
         return sq.create_engine(url=dsn)
 
-    def add_user(self):
-        pass
+    def add_user_record_to_db(self, user: Users, flag: tuple[bool, bool],
+                              photos: list[Photos], client: Clients):
+        with self.Session() as s:
+            list_t = ListType(user_id=user.user_id, blacklist=flag[1],
+                              client_id=client.client_id, favorites=flag[0])
+            s.add_all([client, user, list_t, *photos])
+            s.commit()
+
+    def download_blacklist(self, client_id: int) -> dict[Users, list[Photos]]:
+        users = {}
+        with self.Session() as s:
+            qr = s.query(Users, Photos).join(
+                ListType
+            ).outerjoin(
+                Photos
+            ).filter(
+                sq.and_(ListType.blacklist, ListType.client_id == client_id)
+            ).all()
+            for user, photo in qr:
+                users.setdefault(user, []).append(photo)
+            return users
+
+    def download_favorites(self, client_id: int) -> dict[Users: list[Photos]]:
+        users = {}
+        with self.Session() as s:
+            qr = s.query(Users, Photos).join(
+                ListType
+            ).outerjoin(
+                Photos
+            ).filter(
+                sq.and_(sq.not_(ListType.blacklist),
+                        ListType.client_id == client_id)
+            ).all()
+            for user, photo in qr:
+                users.setdefault(user, []).append(photo)
+            return users
 
     def create_all_tables(self) -> None:
         Base.metadata.create_all(self.engine)
@@ -91,7 +144,31 @@ class ModelDb:
 if __name__ == '__main__':
     login_db = os.environ['LOGIN_DB']
     password_db = os.environ['PASSWORD_DB']
+    #
+
+    # client = Clients(user)
+    # user = Users(user_id=101, first_name='igor',
+    #              last_name='pervi', prf_link='href 11')
+    # client = Clients(client_id=111)
+    # client2 = Clients(client_id=112)
+    # curr_list = ListType(client_id=client.client_id,
+    #                      user_id=user.user_id,
+    #                      favorites=False,
+    #                      blacklist=True)
+    # session.add(curr_list)
+    # s.add_all([user, client, curr_list])
+
     model = ModelDb(login_db, password_db, db_name='vk_bot_db')
 
     model.drop_all_table()
     model.create_all_tables()
+    # my_dict: dict = model.download_blacklist(111111111)
+    # print(my_dict, type(my_dict))
+    # # for k, v in my_dict.items():
+    # #     print(k)
+    # #     print(*v, sep='\n')
+    # # print()
+    # print(model.download_favorites(111111111))
+    # # usr = Users({'id': 555444111})
+    # print(usr)
+    # model.add_record()
