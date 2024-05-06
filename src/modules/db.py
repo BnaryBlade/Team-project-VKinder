@@ -3,7 +3,6 @@ import os
 import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.exc import IntegrityError
-# from sqlalchemy import select  # insert, update, join, delete
 
 Base = declarative_base()
 
@@ -16,12 +15,6 @@ class Clients(Base):
     user = relationship('ListType', backref='client',
                         cascade='all, delete')
 
-    # list_t = relationship('ListType', back_populates='client',
-    #                       cascade='all, delete')
-
-    def __str__(self) -> str:
-        return f'{self.client_id=}'
-
 
 class Users(Base):
     __tablename__ = 'users'
@@ -31,16 +24,11 @@ class Users(Base):
     last_name = sq.Column(sq.String(length=50), nullable=False)
     prf_link = sq.Column(sq.Text, nullable=False)
 
-    # client = relationship('ListType', backref='user',
-    #                       cascade='all, delete-orphan')
     client = relationship('ListType', backref='user',
                           cascade='all, delete')
 
     photo = relationship('Photos', backref='user',
                          cascade='all, delete')
-
-    def __str__(self) -> str:
-        return f'{self.user_id=} {self.first_name=} {self.last_name=}'
 
 
 class ListType(Base):
@@ -51,17 +39,6 @@ class ListType(Base):
     user_id = sq.Column(sq.Integer, sq.ForeignKey('users.user_id'),
                         primary_key=True, nullable=False)
     blacklist = sq.Column(sq.Boolean, default=False, nullable=False)
-
-    # Define a check constrains:
-
-    #
-    # client = relationship('clients', back_populates='list_t')
-    # user = relationship('users', back_populates='list_t')
-
-    # users = relationship('users', cascade='all,delete',
-    #                      backref='list_type')
-    def __str__(self) -> str:
-        return f'{self.client_id=} {self.user_id=}, {self.blacklist=}'
 
 
 class Photos(Base):
@@ -109,13 +86,11 @@ class ModelDb:
                 s.commit()
             except IntegrityError:
                 s.rollback()
-                print('Такой клиент уже есть...')
                 try:
                     s.add(user)
                     s.commit()
                 except IntegrityError:
                     s.rollback()
-                    print('Tакой пользователь уже есть...')
                     s.add(list_t)
                     s.commit()
                 else:
@@ -152,28 +127,8 @@ if __name__ == '__main__':
     login_db = os.environ['LOGIN_DB']
     password_db = os.environ['PASSWORD_DB']
     model = ModelDb(login_db, password_db, db_name='vk_bot_db')
-    #
-    #
-    # with model.Session() as s:
-    #     user = Users(user_id=101, first_name='igor', last_name='pervi',
-    #                  prf_link='href 11')
-    #     client = Clients(client_id=111)
-    #     curr_list = ListType(client_id=client.client_id,
-    #                          user_id=user.user_id,
-    #                          blacklist=True)
-    #     curr_list.
-    #     session.add(curr_list)
-    #     s.add_all([user, client, curr_list])
-
-    # model.drop_all_table()
-    # model.create_all_tables()
     my_dict: dict = model.download_users(861256395, True)
     print(my_dict, type(my_dict))
     for k, v in my_dict.items():
         print(k)
         print(*v, sep='\n')
-    # print()
-    # print(model.download_users(111111111, True))
-    # # usr = Users({'id': 555444111})
-    # print(usr)
-    # model.add_record()

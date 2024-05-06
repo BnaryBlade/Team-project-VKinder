@@ -54,10 +54,8 @@ class Bot:
 if __name__ == '__main__':
     login_db = os.environ['LOGIN_DB']
     password_db = os.environ['PASSWORD_DB']
-
-    my_group_token = os.environ['MY_GROUP_TOKEN']
-    # grp_token = os.environ['GROUP_TOKEN']
+    grp_token = os.environ['GROUP_TOKEN']
     my_token = os.environ['TOKEN']
     my_id = int(os.environ['USER_ID'])
-    main_bot = Bot(my_id, my_token, my_group_token, login_db, password_db)
+    main_bot = Bot(my_id, my_token, grp_token, login_db, password_db)
     main_bot.launching_bot()
