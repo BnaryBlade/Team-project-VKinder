@@ -363,9 +363,9 @@ class ActionInterface:
 
     def _get_start_dialog_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(KeyWord.FND_PEOPLE, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.FND_PEOPLE, VkKeyboardColor.PRIMARY)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.PRIMARY)
+        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.NEGATIVE)
 
         key_word = {KeyWord.FND_PEOPLE: self._go_choose_view_options,
                     KeyWord.STOP_USER_BOT: self.stop_bot_dialog}
@@ -374,17 +374,17 @@ class ActionInterface:
     def _get_choosing_actions_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
         keyboard.add_button(KeyWord.FND_NEW_PEOPLE,
-                            VkKeyboardColor.SECONDARY)
+                            VkKeyboardColor.PRIMARY)
         keyboard.add_line()
         keyboard.add_button(KeyWord.SHOW_BLACKLIST,
-                            VkKeyboardColor.POSITIVE)
+                            VkKeyboardColor.SECONDARY)
         keyboard.add_button(KeyWord.SHOW_FAVORITES,
-                            VkKeyboardColor.POSITIVE)
+                            VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.CLEAR_BLACKLIST, VkKeyboardColor.POSITIVE)
-        keyboard.add_button(KeyWord.CLEAR_HISTORY, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.CLEAR_BLACKLIST, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.CLEAR_HISTORY, VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.NEGATIVE)
 
         key_word = {KeyWord.FND_NEW_PEOPLE: self._go_search_people,
                     KeyWord.SHOW_BLACKLIST: self._go_blacklist_view,
@@ -396,14 +396,14 @@ class ActionInterface:
 
     def _get_criteria_selection_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(KeyWord.LETS_SHOW, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.LETS_SHOW, VkKeyboardColor.PRIMARY)
         keyboard.add_line()
         keyboard.add_button(KeyWord.CHOOSE_CITY, VkKeyboardColor.SECONDARY)
         keyboard.add_button(KeyWord.CHOOSE_AGE, VkKeyboardColor.SECONDARY)
-        keyboard.add_button(KeyWord.CHOOSE_SEX, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.CHOOSE_SEX, VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
-        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.NEGATIVE)
 
         key_word = {KeyWord.COME_BACK: self._go_come_back,
                     KeyWord.CHOOSE_CITY: self._choose_city,
@@ -420,10 +420,10 @@ class ActionInterface:
         keyboard.add_button(KeyWord.IS_INTERESTING,
                             VkKeyboardColor.SECONDARY)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.NEXT_USER, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.NEXT_USER, VkKeyboardColor.PRIMARY)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.PRIMARY)
-        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.PRIMARY)
+        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.NEGATIVE)
 
         key_word = {KeyWord.IS_NOT_INTERESTING: self._add_to_blacklist,
                     KeyWord.IS_INTERESTING: self._add_to_favorites,
@@ -434,13 +434,13 @@ class ActionInterface:
 
     def _get_viewing_history_kb(self) -> tuple[VkKeyboard, dict]:
         keyboard = VkKeyboard()
-        keyboard.add_button(KeyWord.PREVIOUS_PERSON, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.PREVIOUS_PERSON, VkKeyboardColor.PRIMARY)
         keyboard.add_button(KeyWord.DELETE_FROM_LIST, VkKeyboardColor.NEGATIVE)
-        keyboard.add_button(KeyWord.NEXT_PERSON, VkKeyboardColor.SECONDARY)
+        keyboard.add_button(KeyWord.NEXT_PERSON, VkKeyboardColor.PRIMARY)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.NEGATIVE)
+        keyboard.add_button(KeyWord.COME_BACK, VkKeyboardColor.POSITIVE)
         keyboard.add_line()
-        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.POSITIVE)
+        keyboard.add_button(KeyWord.STOP_USER_BOT, VkKeyboardColor.NEGATIVE)
 
         key_word = {KeyWord.NEXT_PERSON: self._show_next_person,
                     KeyWord.DELETE_FROM_LIST: self._delete_user,
