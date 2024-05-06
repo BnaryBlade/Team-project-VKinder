@@ -1,5 +1,3 @@
-import os
-
 import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -121,14 +119,3 @@ class ModelDb:
 
     def drop_all_table(self) -> None:
         Base.metadata.drop_all(self.engine)
-
-
-if __name__ == '__main__':
-    login_db = os.environ['LOGIN_DB']
-    password_db = os.environ['PASSWORD_DB']
-    model = ModelDb(login_db, password_db, db_name='vk_bot_db')
-    my_dict: dict = model.download_users(861256395, True)
-    print(my_dict, type(my_dict))
-    for k, v in my_dict.items():
-        print(k)
-        print(*v, sep='\n')
