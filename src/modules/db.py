@@ -101,35 +101,29 @@ class ModelDb:
 
     def write_users_to_db(self, user: Users, client: Clients,
                           photos: list[Photos], blacklisted: bool):
-
-        # client = Clients(client_id=client_id)
         list_t = ListType(user_id=user.user_id, blacklist=blacklisted,
                           client_id=client.client_id)
         with self.Session() as s:
             try:
                 s.add(client)
+                s.commit()
             except IntegrityError:
                 s.rollback()
                 print('Такой клиент уже есть...')
-                s.add_all([user, list_t, *photos])
+                try:
+                    s.add(user)
+                    s.commit()
+                except IntegrityError:
+                    s.rollback()
+                    print('Tакой пользователь уже есть...')
+                    s.add(list_t)
+                    s.commit()
+                else:
+                    s.add_all([list_t, *photos])
+                    s.commit()
             else:
                 s.add_all([client, user, list_t, *photos])
-            s.commit()
-
-    # def download_blacklist(self,
-    #                        client_id: int) -> dict[Users, list[Photos]]:
-    #     users = Users{}
-    #     with self.Session() as s:
-    #         qr = s.query(Users, Photos).join(
-    #             ListType
-    #         ).outerjoin(
-    #             Photos
-    #         ).filter(
-    #             sq.and_(ListType.blacklist, ListType.client_id == client_id)
-    #         ).all()
-    #         for user, photo in qr:
-    #             users.setdefault(user, []).append(photo)
-    #         return users
+                s.commit()
 
     def download_users(self, client_id: int,
                        blacklisted: bool) -> dict[Users: list[Photos]]:

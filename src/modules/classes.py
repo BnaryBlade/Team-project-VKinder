@@ -104,6 +104,12 @@ class User:
                               reverse=popular)
         return self.list_photos[:count]
 
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
 
 class UserVkApi(VkApi):
 
@@ -522,6 +528,9 @@ class UserBot(ActionInterface):
         self.curr_user: User | None = None
         self.blacklist = set()
         self.favorite_list = set()
+        self.viewing_list: list | None = None
+        self.marker = 0
+        self.max_marker = 0
         self.another_action: Any = None
 
     def event_handling(self, event: Event) -> None:
@@ -551,14 +560,22 @@ class UserBot(ActionInterface):
         self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
 
     def _go_blacklist_view(self, msg='Посмотрим...') -> None:
+        self.marker = 0
+        self.max_marker = len(self.blacklist) - 1
+        self.viewing_list = list(self.blacklist)
         message = msg
         self.curr_kb, self.curr_action = self._get_viewing_history_kb()
         self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
+        self._show_next_person()
 
     def _go_favorites_view(self, msg='Посмотрим...') -> None:
+        self.marker = 0
+        self.max_marker = len(self.favorite_list) - 1
+        self.viewing_list = list(self.favorite_list)
         message = msg
         self.curr_kb, self.curr_action = self._get_viewing_history_kb()
         self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
+        self._show_next_person()
 
     def _go_search_people(self, msg='') -> None:
         self.curr_kb, self.curr_action = self._get_criteria_selection_kb()
@@ -579,6 +596,10 @@ class UserBot(ActionInterface):
             self.curr_user = None
             self.s_engin.stop_found_users()
             self.s_engin.set_criteria_from_user(self.client)
+        elif self.viewing_list is not None:
+            self.marker = 0
+            self.max_marker = 0
+            self.viewing_list = None
         elif self.s_engin.is_criteria_changed:
             self.s_engin.set_criteria_from_user(self.client)
         self.curr_kb, self.curr_action = self._get_choosing_actions_kb()
@@ -707,14 +728,26 @@ class UserBot(ActionInterface):
             self.db.write_users_to_db(*args, blacklisted=False)
             self.api.write_msg(self.client.id, msg)
 
-    def _show_previous_person(self, msg='Пока не реализовали...') -> None:
-        self.api.write_msg(self.client.id, msg)
+    def _show_previous_person(self, msg='Список пуст...') -> None:
+        if self.viewing_list:
+            if abs(self.marker) > self.max_marker:
+                self.marker = 0
+            self.show_user_info(self.viewing_list[self.marker])
+            self.marker = -1
+        else:
+            self.api.write_msg(self.client.id, msg)
 
     def _delete_user(self, msg='Пока не реализовали...') -> None:
         self.api.write_msg(self.client.id, msg)
 
-    def _show_next_person(self, msg='Пока не реализовали...') -> None:
-        self.api.write_msg(self.client.id, msg)
+    def _show_next_person(self, msg='Список пуст...') -> None:
+        if self.viewing_list:
+            if abs(self.marker) > self.max_marker:
+                self.marker = 0
+            self.show_user_info(self.viewing_list[self.marker])
+            self.marker += 1
+        else:
+            self.api.write_msg(self.client.id, msg)
 
     def do_another_action(self, event: Event) -> None:
         msg = '-'.join([event.text, 'я не понимаю, чего Вы от меня хотите...'])
