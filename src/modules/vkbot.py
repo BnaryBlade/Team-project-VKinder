@@ -3,7 +3,7 @@ import os
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 from db import ModelDb
-from classes import UserBot, GropVkApi, UserVkApi, User, KeyWord
+from classes import UserBot, GroupVkApi, UserVkApi, User, KeyWord
 
 
 class Bot:
@@ -11,7 +11,7 @@ class Bot:
     def __init__(self, admin_id: int, admin_token: str, group_token: str,
                  db_login: str, db_password: str, db_name='vk_bot_db') -> None:
         self.u_api = UserVkApi(token=admin_token, user_id=admin_id)
-        self.api = GropVkApi(group_token=group_token)
+        self.api = GroupVkApi(group_token=group_token)
         self.database = ModelDb(login=db_login, password=db_password,
                                 db_name=db_name)
         self.user_bots: dict[UserBot] | dict = {}

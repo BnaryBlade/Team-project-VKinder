@@ -7,6 +7,7 @@ from datetime import datetime
 from vk_api import VkApi, ApiError
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import Event
+from sqlalchemy.exc import IntegrityError
 
 from db import ModelDb, Users, Photos, Clients
 from vk_data import KeyWord, Meths, DftSrcCriteria
@@ -187,7 +188,7 @@ class UserVkApi(VkApi):
             return []
 
 
-class GropVkApi(VkApi):
+class GroupVkApi(VkApi):
 
     def __init__(self, group_token: str) -> None:
         super().__init__(token=group_token, api_version='5.191')
@@ -519,7 +520,7 @@ class UserBot(ActionInterface):
     AGE_PATTERN = re.compile(r'\d{1,3}')
 
     def __init__(self, user_api: UserVkApi, user: User,
-                 bot_api: GropVkApi, model_db: ModelDb) -> None:
+                 bot_api: GroupVkApi, model_db: ModelDb) -> None:
         super().__init__()
         self.s_engin = SearchEngine(user_api)
         self.db = model_db
@@ -560,22 +561,16 @@ class UserBot(ActionInterface):
         self.api.show_kb(self.client.id, msg, self.curr_kb.get_keyboard())
 
     def _go_blacklist_view(self, msg='Посмотрим...') -> None:
-        self.marker = 0
-        self.max_marker = len(self.blacklist) - 1
-        self.viewing_list = list(self.blacklist)
-        message = msg
-        self.curr_kb, self.curr_action = self._get_viewing_history_kb()
-        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
-        self._show_next_person()
+        if self.set_viewing_options(self.blacklist, msg):
+            self.show_user_info(self.viewing_list[self.marker])
+        else:
+            self.api.write_msg(self.client.id, 'Список пуст...')
 
     def _go_favorites_view(self, msg='Посмотрим...') -> None:
-        self.marker = 0
-        self.max_marker = len(self.favorite_list) - 1
-        self.viewing_list = list(self.favorite_list)
-        message = msg
-        self.curr_kb, self.curr_action = self._get_viewing_history_kb()
-        self.api.show_kb(self.client.id, message, self.curr_kb.get_keyboard())
-        self._show_next_person()
+        if self.set_viewing_options(self.favorite_list, msg):
+            self.show_user_info(self.viewing_list[self.marker])
+        else:
+            self.api.write_msg(self.client.id, 'Список пуст...')
 
     def _go_search_people(self, msg='') -> None:
         self.curr_kb, self.curr_action = self._get_criteria_selection_kb()
@@ -709,11 +704,15 @@ class UserBot(ActionInterface):
             message = 'Данный пользователь уже занесен в чёрный список...'
             self.api.write_msg(self.client.id, message)
         else:
-            self.blacklist.add(self.curr_user)
-            self.s_engin.blacklist_ids.add(self.curr_user.id)
             args = self.cnvrt_users_to_db_rec(self.curr_user, self.client.id)
-            self.db.write_users_to_db(*args, blacklisted=True)
-            self.api.write_msg(self.client.id, msg)
+            try:
+                self.db.write_users_to_db(*args, blacklisted=True)
+            except IntegrityError:
+                print('не получилось добавить пользователя в список...')
+            else:
+                self.blacklist.add(self.curr_user)
+                self.s_engin.blacklist_ids.add(self.curr_user.id)
+                self.api.write_msg(self.client.id, msg)
 
     def _add_to_favorites(self, msg='Добавил к избранным...:-)') -> None:
         if self.curr_user in self.favorite_list:
@@ -723,17 +722,21 @@ class UserBot(ActionInterface):
             message = 'Данный пользователь занесен в чёрный список...'
             self.api.write_msg(self.client.id, message)
         else:
-            self.favorite_list.add(self.curr_user)
             args = self.cnvrt_users_to_db_rec(self.curr_user, self.client.id)
-            self.db.write_users_to_db(*args, blacklisted=False)
-            self.api.write_msg(self.client.id, msg)
+            try:
+                self.db.write_users_to_db(*args, blacklisted=False)
+            except IntegrityError:
+                print('не получилось добавить пользователя в список...')
+            else:
+                self.favorite_list.add(self.curr_user)
+                self.api.write_msg(self.client.id, msg)
 
     def _show_previous_person(self, msg='Список пуст...') -> None:
         if self.viewing_list:
+            self.marker -= 1
             if abs(self.marker) > self.max_marker:
                 self.marker = 0
             self.show_user_info(self.viewing_list[self.marker])
-            self.marker = -1
         else:
             self.api.write_msg(self.client.id, msg)
 
@@ -742,10 +745,10 @@ class UserBot(ActionInterface):
 
     def _show_next_person(self, msg='Список пуст...') -> None:
         if self.viewing_list:
+            self.marker += 1
             if abs(self.marker) > self.max_marker:
                 self.marker = 0
             self.show_user_info(self.viewing_list[self.marker])
-            self.marker += 1
         else:
             self.api.write_msg(self.client.id, msg)
 
@@ -765,6 +768,18 @@ class UserBot(ActionInterface):
         else:
             self.api.write_msg(self.client.id, 'Нет пользователей...')
             self._go_come_back('Может изменим варианты просмотра...')
+
+    def set_viewing_options(self, special_list: set, message: str) -> bool:
+        if special_list:
+            self.marker = 0
+            self.max_marker = len(special_list) - 1
+            self.viewing_list = list(special_list)
+            self.curr_kb, self.curr_action = self._get_viewing_history_kb()
+            self.api.show_kb(self.client.id, message,
+                             self.curr_kb.get_keyboard())
+            return True
+        else:
+            return False
 
     @staticmethod
     def cnvrt_users_to_db_rec(user: User, client_id: int) -> tuple:

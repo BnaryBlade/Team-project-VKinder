@@ -33,12 +33,12 @@ CREATE TABLE IF NOT EXISTS List_type (
                        ON DELETE CASCADE ON UPDATE CASCADE,
     user_id    INTEGER NOT NULL REFERENCES users (user_id)
                        ON DELETE CASCADE ON UPDATE CASCADE,
-    blacklist  BOOL    DEFAULT FALSE NOT NULL,
+    blacklist  BOOL    DEFAULT FALSE NOT NULL
 );
 
 /* Table of users photos: */
 CREATE TABLE IF NOT EXISTS Photos (
-    PRIMARY KEY (photo_id),
+    PRIMARY KEY (photo_id, owner_id),
 	photo_id   INTEGER NOT NULL,
 	owner_id   INTEGER NOT NULL REFERENCES Users (user_id)
 	                   ON DELETE CASCADE ON UPDATE CASCADE,

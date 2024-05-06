@@ -44,7 +44,7 @@ class Photos(Base):
 
     photo_id = sq.Column(sq.Integer, primary_key=True)
     owner_id = sq.Column(sq.Integer, sq.ForeignKey(Users.user_id),
-                         nullable=False)
+                         primary_key=True, nullable=False)
     photo_link = sq.Column(sq.Text, nullable=False)
     user_mark = sq.Column(sq.Boolean, default=False, nullable=False)
 
@@ -119,3 +119,12 @@ class ModelDb:
 
     def drop_all_table(self) -> None:
         Base.metadata.drop_all(self.engine)
+
+
+if __name__ == '__main__':
+    import os
+    model = ModelDb(login=os.environ['LOGIN_DB'],
+                    password=os.environ['PASSWORD_DB'],
+                    db_name='vk_bot_db')
+    model.drop_all_table()
+    model.create_all_tables()
